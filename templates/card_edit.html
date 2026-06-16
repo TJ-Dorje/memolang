@@ -1,0 +1,36 @@
+{{template "_header" .}}
+{{$card := .Data.Card}}
+
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+{{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}{{end}}
+
+<form method="POST" action="">
+    <div>
+        <label for="front">Front (word/phrase)</label>
+        <input type="text" id="front" name="front" required value="{{if $card}}{{$card.Front}}{{end}}">
+    </div>
+
+    <div>
+        <label for="back">Back (translation)</label>
+        <input type="text" id="back" name="back" required value="{{if $card}}{{$card.Back}}{{end}}">
+    </div>
+
+    <div>
+        <label for="example">Example sentence (optional)</label>
+        <textarea id="example" name="example">{{if $card}}{{$card.Example}}{{end}}</textarea>
+    </div>
+
+    <div>
+        <label for="tags">Tags (comma-separated, optional)</label>
+        <input type="text" id="tags" name="tags" value="{{if $card}}{{$card.Tags}}{{end}}">
+    </div>
+
+    <div class="btn-group">
+        <button type="submit" class="btn btn-primary">Save Card</button>
+        <a href="javascript:history.back()" class="btn">Cancel</a>
+    </div>
+</form>
+{{template "_footer" .}}

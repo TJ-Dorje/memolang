@@ -1,0 +1,70 @@
+{{template "_header" .}}
+{{$deck := .Data.Deck}}
+{{$cards := .Data.Cards}}
+{{$filter := .Data.Filter}}
+
+<a href="/" class="back-link">← Home</a>
+
+<div class="page-header">
+    <div>
+        <h1>{{$deck.Name}}</h1>
+        <div class="meta">
+            {{$deck.CardCount}} cards ·
+            {{if $deck.DueCount}}{{$deck.DueCount}} due · {{end}}
+            {{$deck.MasteryPct}}% mastery
+        </div>
+    </div>
+    <div class="btn-group">
+        <a href="/decks/{{$deck.ID}}/session?mode=flashcard" class="btn btn-primary">Flashcard</a>
+        <a href="/decks/{{$deck.ID}}/session?mode=mc" class="btn btn-primary">Multiple Choice</a>
+        <a href="/decks/{{$deck.ID}}/import" class="btn">Import CSV</a>
+        <a href="/decks/{{$deck.ID}}/edit" class="btn">Edit</a>
+        <form method="POST" action="/decks/{{$deck.ID}}/delete" style="display:inline"
+              onsubmit="return confirm('Delete this deck and all its cards? This cannot be undone.')">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="progress"><div class="progress-fill" style="width: {{$deck.MasteryPct}}%"></div></div>
+
+<div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+    <div class="filter-tabs" style="margin-bottom: 0;">
+        <a href="?filter=all" class="filter-tab {{if eq $filter "all"}}active{{end}}">All</a>
+        <a href="?filter=due" class="filter-tab {{if eq $filter "due"}}active{{end}}">Due</a>
+        <a href="?filter=new" class="filter-tab {{if eq $filter "new"}}active{{end}}">New</a>
+    </div>
+    <form method="GET" style="flex: 1; min-width: 180px; display: flex; gap: 0.5rem;">
+        <input type="hidden" name="filter" value="{{$filter}}">
+        <input type="text" name="q" value="{{.Data.Search}}" placeholder="Search cards…" style="flex: 1;">
+        <button type="submit" class="btn btn-sm">Search</button>
+        {{if .Data.Search}}<a href="?filter={{$filter}}" class="btn btn-sm">✕</a>{{end}}
+    </form>
+</div>
+
+{{if $cards}}
+<div class="card-list">
+    {{range $cards}}
+    <div class="card-row">
+        <div>
+            <span class="front">{{.Front}}</span>
+            <span class="back">— {{.Back}}</span>
+        </div>
+        <div class="actions">
+            <a href="/cards/{{.ID}}/edit" class="btn btn-sm">Edit</a>
+            <form method="POST" action="/cards/{{.ID}}/delete" style="display:inline"
+                  onsubmit="return confirm('Delete this card?')">
+                <input type="hidden" name="deck_id" value="{{.DeckID}}">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <p>No cards in this deck yet.</p>
+    <a href="/decks/{{$deck.ID}}/import" class="btn btn-primary">Import Cards</a>
+</div>
+{{end}}
+{{template "_footer" .}}

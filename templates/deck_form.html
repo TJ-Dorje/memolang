@@ -1,0 +1,33 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+{{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}{{end}}
+
+<form method="POST" action="">
+    <div>
+        <label for="name">Deck Name</label>
+        <input type="text" id="name" name="name" required
+            value="{{if .Data}}{{if .Data.Deck}}{{.Data.Deck.Name}}{{end}}{{end}}">
+    </div>
+
+    <div>
+        <label>Mode</label>
+        <div class="radio-group">
+            <label><input type="radio" name="mode" value="srs"
+                {{if not .Data}}checked{{else if not .Data.Deck}}checked{{else if eq .Data.Deck.Mode "srs"}}checked{{end}}>
+                SRS</label>
+            <label><input type="radio" name="mode" value="linear"
+                {{if .Data}}{{if .Data.Deck}}{{if eq .Data.Deck.Mode "linear"}}checked{{end}}{{end}}{{end}}>
+                Linear</label>
+        </div>
+    </div>
+
+    <div>
+        <button type="submit" class="btn btn-primary">Save Deck</button>
+        <a href="/decks/new?ai_mode=true" class="btn btn-warning">Generate using AI</a>
+        <a href="/" class="btn">Cancel</a>
+    </div>
+</form>
+{{template "_footer" .}}

@@ -1,0 +1,322 @@
+front,back,example,tags
+ཁ་ལག (kha lag),food,ཁ་ལག བཟང་པོ་རེད། (The food is good.),noun
+ཆུ (chu),water,ཆུ་འཐུང་གི་ཡིན། (I will drink water.),noun
+མི (mi),person / human,མི་དེ་བཟང་པོ་རེད། (That person is good.),noun
+ལྷ་ས (lha sa),Lhasa,ང་ལྷ་སར་འགྲོ་གི་ཡིན། (I am going to Lhasa.),"noun,place"
+གནམ (gnam),sky,གནམ་སྔོན་པོ་རེད། (The sky is blue.),noun
+ས་གཞི (sa gzhi),ground / earth,ས་གཞི་རེད། (It is the ground.),noun
+དེབ (deb),book,དེབ་འདི་བཀླགས་སོང་། (I read this book.),noun
+སྒོ (sgo),door,སྒོ་ཕྱེ་རོགས། (Please open the door.),noun
+ཉི་མ (nyi ma),sun / day,ཉི་མ་འཆར་གྱི་འདུག (The sun is rising.),noun
+ཟླ་བ (zla ba),moon / month,ཟླ་བ་མདོག་དཀར་པོ་རེད། (The moon is white.),noun
+ཡིན (yin),to be (I/we),ང་བོད་པ་ཡིན། (I am Tibetan.),"verb,copula"
+རེད (red),to be (he/she/it),དེ་བཟང་པོ་རེད། (It is good.),"verb,copula"
+འདུག (dug),to be (evidential),ཁོང་ལྷ་སར་ཡོད་འདུག (It seems he is in Lhasa.),"verb,copula"
+འགྲོ (gro),to go,ང་ཕར་འགྲོ་གི་ཡིན། (I will go there.),"verb"
+འོང (ong),to come,ཁོང་ད་ལྟ་འོང་གི་འདུག (He is coming now.),verb
+ཟ (za),to eat,ཁ་ལག་ཟ་གི་ཡིན། (I will eat food.),verb
+འཐུང (thung),to drink,ཆུ་འཐུང་གི་ཡིན། (I will drink water.),verb
+ལྟ (lta),to look / to see,གནམ་ལ་ལྟ་རོགས། (Please look at the sky.),verb
+སྦྱོང (byong),to study / to practice,བོད་སྐད་སྦྱོང་གི་ཡིན། (I will study Tibetan.),verb
+བཀླག (klag),to read,དེབ་བཀླགས་སོང་། (I read the book.),verb
+བཟང་པོ (bzang po),good,ཁ་ལག་བཟང་པོ་རེད། (The food is good.),adjective
+ངན་པ (ngan pa),bad,གནམ་གཤིས་ངན་པ་རེད། (The weather is bad.),adjective
+ཆེན་པོ (chen po),big / great,གྲོང་ཁྱེར་ཆེན་པོ་རེད། (It is a big city.),adjective
+ཆུང་ཆུང (chung chung),small,དེབ་ཆུང་ཆུང་རེད། (The book is small.),adjective
+སར་པ (sar pa),new,དེབ་སར་པ་རེད། (The book is new.),adjective
+རྙིང་པ (rnying pa),old,ཁང་པ་རྙིང་པ་རེད། (The house is old.),adjective
+ང (nga),I / me,ང་བོད་སྐད་སློབ་སྦྱོང་བྱེད་ཀྱི་ཡིན། (I am learning Tibetan.),pronoun
+ཁྱེད་རང (khyed rang),you (formal),ཁྱེད་རང་སུ་ཡིན། (Who are you?),pronoun
+ཁོང (khong),he / she (formal),ཁོང་བོད་པ་ཡིན། (He/She is Tibetan.),pronoun
+གཅིག (gcig),one,མི་གཅིག་རེད། (It is one person.),number
+གཉིས (gnyis),two,ལྷ་གཉིས་རེད། (There are two.),number
+བྱེད (byed),to do,ང་ལས་ཀ་བྱེད་ཀྱི་ཡིན། (I will do work.),verb
+ཟེར (zer),to say,ཁོང་གིས་དེ་འདྲས་ཟེར་གྱི་འདུག (He says so.),verb
+ལབ (lab),to tell / to speak,ཁོང་གིས་བོད་སྐད་ལབ་ཀྱི་འདུག (He speaks Tibetan.),verb
+ཤེས (shes),to know,ང་ཤེས་ཀྱི་ཡོད། (I know.),verb
+ཡོད (yod),to have / to exist,ང་ལ་དེབ་ཡོད། (I have a book.),"verb,copula"
+དགོས (dgos),to need / to want,ང་ལ་ཆུ་དགོས། (I need water.),verb
+ཐུབ (thub),to be able,ང་འགྲོ་ཐུབ་ཀྱི་མ་རེད། (I will not be able to go.),verb
+ཉན (nyan),to listen,ང་གླུ་ཉན་གྱི་ཡིན། (I will listen to a song.),verb
+གོ (go),to hear,ང་གོ་མ་སོང་། (I did not hear.),verb
+ཧ་གོ (ha go),to understand,ཁྱེད་རང་གིས་ཧ་གོ་སོང་ངས། (Did you understand?),verb
+ཉོ (nyo),to buy,ང་དེབ་ཉོ་གི་ཡིན། (I will buy a book.),verb
+འཚོང (tshong),to sell,ཁོང་གིས་ཚལ་འཚོང་གི་འདུག (He is selling vegetables.),verb
+སྡོད (sdod),to sit / to stay,འདིར་སྡོད་རོགས། (Please sit here.),verb
+ལངས (langs),to stand up / to get up,ཡར་ལངས་རོགས། (Please stand up.),verb
+ཉལ (nyal),to sleep,ང་ད་ལྟ་ཉལ་གྱི་ཡིན། (I will sleep now.),verb
+འབྲི (bri),to write,ང་ཡི་གེ་འབྲི་གི་ཡིན། (I will write a letter.),verb
+སློབ (slob),to teach,ཁོང་གིས་བོད་ཡིག་སློབ་ཀྱི་འདུག (He teaches Tibetan.),verb
+དྲན (dran),to remember / to miss,ང་ཕ་ཡུལ་དྲན་གྱི་འདུག (I miss my homeland.),verb
+བརྗེད (brjed),to forget,ངས་མིང་བརྗེད་སོང་། (I forgot the name.),verb
+དགའ (dga),to like / to love,ང་ཇ་ལ་དགའ་པོ་ཡོད། (I like tea.),verb
+སྐྲག (skrag),to be afraid,ང་ཁྱི་ལ་སྐྲག་གི་འདུག (I am afraid of dogs.),verb
+ངུ (ngu),to cry,བྱིས་པ་ངུ་གི་འདུག (The child is crying.),verb
+གད་མོ་ཤོར (gad mo shor),to laugh,ཁོང་གད་མོ་ཤོར་སོང་། (He laughed.),verb
+རྒྱུག (rgyug),to run,ཁྱི་རྒྱུག་གི་འདུག (The dog is running.),verb
+འཁྱེར (khyer),to carry / to bring,དེབ་འཁྱེར་ཤོག (Bring the book.),verb
+ལེན (len),to take / to get,ང་ཆུ་ལེན་གྱི་ཡིན། (I will get water.),verb
+སྤྲོད (sprod),to give,དེ་ང་ལ་སྤྲོད་རོགས། (Please give it to me.),verb
+བཟོ (bzo),to make,ང་ཁ་ལག་བཟོ་གི་ཡིན། (I will make food.),verb
+གཅོག (gcog),to break,ཁོང་གིས་ཕོར་པ་བཅག་སོང་། (He broke the cup.),verb
+འཚོལ (tshol),to search / to look for,ང་ལྡེ་མིག་འཚོལ་གྱི་ཡོད། (I am looking for the key.),verb
+རྙེད (rnyed),to find,ངས་ལྡེ་མིག་རྙེད་སོང་། (I found the key.),verb
+བོར (bor),to lose (an object),ངས་སྒོར་མོ་བོར་སོང་། (I lost money.),verb
+འཕུར (phur),to fly,བྱ་འཕུར་གྱི་འདུག (The bird is flying.),verb
+རྐྱལ་རྒྱག (rkyal rgyag),to swim,ང་མཚོ་ནང་རྐྱལ་རྒྱག་གི་ཡིན། (I will swim in the lake.),verb
+འཁྲིད (khrid),to lead / to guide,ཁོང་གིས་ལམ་འཁྲིད་ཀྱི་འདུག (He is leading the way.),verb
+སྟོན (ston),to show,ང་ལ་སྟོན་རོགས། (Please show me.),verb
+སྒུག (sgug),to wait,འདིར་སྒུག་རོགས། (Please wait here.),verb
+ཚོར (tshor),to feel,ང་གྲང་མོ་ཚོར་གྱི་འདུག (I feel cold.),verb
+མཐོང (mthong),to see,ང་རི་མཐོང་གི་འདུག (I see the mountain.),verb
+བསམ་བློ་གཏོང (bsam blo gtong),to think,ང་བསམ་བློ་གཏོང་གི་ཡོད། (I am thinking.),verb
+ཡིད་ཆེས་བྱེད (yid ches byed),to believe,ང་ཁྱེད་རང་ལ་ཡིད་ཆེས་བྱེད་ཀྱི་ཡོད། (I believe you.),verb
+རེ་བ་བྱེད (re ba byed),to hope,ང་རེ་བ་བྱེད་ཀྱི་ཡོད། (I am hoping.),verb
+འདོད (dod),to want / to desire,ང་འགྲོ་འདོད་ཡོད། (I want to go.),verb
+རྩེད་མོ་རྩེ (rtsed mo rtse),to play,བྱིས་པ་རྩེད་མོ་རྩེ་གི་འདུག (The children are playing.),verb
+གླུ་གཏོང (glu gtong),to sing,ཁོང་གིས་གླུ་གཏོང་གི་འདུག (She is singing.),verb
+ཞབས་བྲོ་རྒྱག (zhabs bro rgyag),to dance,ང་ཚོ་ཞབས་བྲོ་རྒྱག་གི་ཡིན། (We will dance.),verb
+འཁྲུད (khrud),to wash,ང་ལག་པ་འཁྲུད་ཀྱི་ཡིན། (I will wash my hands.),verb
+གཙང་མ་བཟོ (gtsang ma bzo),to clean,ཁང་པ་གཙང་མ་བཟོ་རོགས། (Please clean the room.),verb
+སྐོལ (skol),to boil,ཆུ་སྐོལ་རོགས། (Please boil water.),verb
+སྲེག (sreg),to burn (something),ཁོང་གིས་ཤོག་བུ་སྲེག་གི་འདུག (He is burning paper.),verb
+གཏོང (gtong),to send / to let go,ང་འཕྲིན་ཡིག་གཏོང་གི་ཡིན། (I will send a message.),verb
+སྐུར (skur),to send (a letter),ང་ཡི་གེ་སྐུར་གྱི་ཡིན། (I will send a letter.),verb
+འབྱོར (byor),to arrive (mail/goods),ཡི་གེ་འབྱོར་སོང་། (The letter arrived.),verb
+ཐོན (thon),to leave / to depart,ང་ཞོགས་པ་ཐོན་གྱི་ཡིན། (I will leave in the morning.),verb
+ཕྱིར་ལོག (phyir log),to return / to go back,ང་ནང་ལ་ཕྱིར་ལོག་གི་ཡིན། (I will return home.),verb
+འཛུལ (dzul),to enter,ཁོང་ཁང་པའི་ནང་ལ་འཛུལ་སོང་། (He entered the house.),verb
+སླེབས (slebs),to arrive / to reach,ང་ལྷ་སར་སླེབས་སོང་། (I arrived in Lhasa.),verb
+འགོ་འཛུགས (go dzugs),to begin / to start,ང་ལས་ཀ་འགོ་འཛུགས་ཀྱི་ཡིན། (I will start the work.),verb
+ཚར (tshar),to finish / to be done,ལས་ཀ་ཚར་སོང་། (The work is finished.),verb
+མཚམས་འཇོག (mtshams jog),to stop / to cease,ལས་ཀ་མཚམས་འཇོག་རོགས། (Please stop the work.),verb
+འཛིན (dzin),to hold / to grasp,ལག་པས་འཛིན་རོགས། (Please hold it with your hand.),verb
+འཇོག (jog),to put / to place,དེབ་འདིར་འཇོག་རོགས། (Please put the book here.),verb
+བླུག (blug),to pour,ཇ་བླུག་རོགས། (Please pour the tea.),verb
+ཕྱེ (phye),to open,སྒོ་ཕྱེ་རོགས། (Please open the door.),verb
+སྒོ་རྒྱག (sgo rgyag),to close (a door),སྒོ་རྒྱག་རོགས། (Please close the door.),verb
+འཐེན (then),to pull,ཐག་པ་འཐེན་རོགས། (Please pull the rope.),verb
+རྡུང (rdung),to hit / to beat,རྔ་རྡུང་གི་འདུག (He is beating the drum.),verb
+གཡུག (yug),to throw,རྡོ་གཡུག་མ་གནང་། (Do not throw stones.),verb
+འཇུ (ju),to catch,པོ་ལོ་འཇུ་ཐུབ་སོང་། (He caught the ball.),verb
+རྐོ (rko),to dig,ས་རྐོ་གི་འདུག (He is digging the ground.),verb
+འདེབས (debs),to plant / to sow,ས་བོན་འདེབས་ཀྱི་ཡིན། (I will sow seeds.),verb
+སྐྱེ (skye),to be born / to grow,མེ་ཏོག་སྐྱེ་གི་འདུག (Flowers are growing.),verb
+འཆི (chi),to die,མི་ཚང་མ་འཆི་དགོས་རེད། (Everyone must die.),verb
+གསོད (gsod),to kill,སེམས་ཅན་གསོད་མི་ཉན། (One must not kill animals.),verb
+བཤད (bshad),to explain / to tell,ང་ལ་བཤད་རོགས། (Please tell me.),verb
+འདྲི (dri),to ask,ང་དྲི་བ་འདྲི་གི་ཡིན། (I will ask a question.),verb
+ལན་རྒྱག (lan rgyag),to answer / to reply,ལན་རྒྱག་རོགས། (Please answer.),verb
+རོགས་པ་བྱེད (rogs pa byed),to help,ང་ལ་རོགས་པ་བྱེད་རོགས། (Please help me.),verb
+སྐྱོབ (skyob),to save / to protect,ཁོང་གིས་བྱིས་པ་སྐྱོབ་སོང་། (He saved the child.),verb
+བརྗེ (brje),to exchange / to swap,དངུལ་བརྗེ་གི་ཡིན། (I will exchange money.),verb
+སྒྱུར (sgyur),to change / to translate,བོད་ཡིག་ལ་སྒྱུར་རོགས། (Please translate it into Tibetan.),verb
+བཅོས (bcos),to fix / to repair,མོ་ཊ་བཅོས་ཀྱི་འདུག (He is repairing the car.),verb
+གཡར (yar),to lend / to borrow,དེབ་གཡར་རོགས། (Please lend me the book.),verb
+བེད་སྤྱོད་གཏོང (bed spyod gtong),to use,འདི་བེད་སྤྱོད་གཏོང་ཆོག་གི་རེད་པས། (May I use this?),verb
+བགོ་བཤའ་རྒྱག (bgo bsha rgyag),to divide / to share,ཁ་ལག་བགོ་བཤའ་རྒྱག་གི་ཡིན། (We will share the food.),verb
+སྡུད (sdud),to collect / to gather,ཁོང་གིས་ཤིང་ཏོག་སྡུད་ཀྱི་འདུག (He is gathering fruit.),verb
+གསོག (gsog),to save / to accumulate,ང་དངུལ་གསོག་གི་ཡོད། (I am saving money.),verb
+སྦེད (sbed),to hide (something),ཁོང་གིས་སྒོར་མོ་སྦེད་ཀྱི་འདུག (He is hiding the money.),verb
+གསང (gsang),to keep secret,གསང་བ་གསང་རོགས། (Please keep the secret.),verb
+མཐུད (mthud),to connect / to continue,སྐད་ཆ་མཐུད་རོགས། (Please continue talking.),verb
+གཅོད (gcod),to cut,ཤིང་གཅོད་ཀྱི་འདུག (He is cutting wood.),verb
+གཏུབ (gtub),to chop,ཚལ་གཏུབ་ཀྱི་ཡིན། (I will chop vegetables.),verb
+འདྲུད (drud),to drag,སྒམ་འདྲུད་ཀྱི་འདུག (He is dragging the box.),verb
+དེད (ded),to chase,ཁྱིས་བྱི་ལ་དེད་ཀྱི་འདུག (The dog is chasing the cat.),verb
+འབྲོས (bros),to flee / to escape,རྟ་འབྲོས་སོང་། (The horse fled.),verb
+མཆོང (mchong),to jump,ཡར་མཆོང་རོགས། (Please jump up.),verb
+འཛེག (dzeg),to climb,ང་རི་ལ་འཛེག་གི་ཡིན། (I will climb the mountain.),verb
+འབབ (bab),to fall / to descend,ཆར་པ་འབབ་ཀྱི་འདུག (It is raining.),verb
+རིལ (ril),to fall over / to tumble,བྱིས་པ་ས་ལ་རིལ་སོང་། (The child fell on the ground.),verb
+འདར (dar),to tremble / to shiver,གྲང་མོས་འདར་གྱི་འདུག (He is shivering from cold.),verb
+ན (na),to be sick / to hurt,ང་མགོ་ན་གི་འདུག (My head hurts.),verb
+དྲག (drag),to recover / to heal,ནད་དྲག་སོང་། (The illness is healed.),verb
+གློ་རྒྱག (glo rgyag),to cough,ཁོང་གློ་རྒྱག་གི་འདུག (He is coughing.),verb
+དབུགས་གཏོང (dbugs gtong),to breathe,དབུགས་རིང་པོ་གཏོང་རོགས། (Please take a deep breath.),verb
+ལྡད (ldad),to chew,ཁ་ལག་ཡག་པོ་ལྡད་རོགས། (Please chew the food well.),verb
+མིད (mid),to swallow,སྨན་མིད་རོགས། (Please swallow the medicine.),verb
+ལྡག (ldag),to lick,བྱི་ལས་འོ་མ་ལྡག་གི་འདུག (The cat is licking the milk.),verb
+ཁྲུས་རྒྱག (khrus rgyag),to bathe,ང་ཁྲུས་རྒྱག་གི་ཡིན། (I will take a bath.),verb
+གྱོན (gyon),to wear / to put on,གོས་གསར་པ་གྱོན་གྱི་ཡིན། (I will wear new clothes.),verb
+ཕུད (phud),to take off (clothes),ལྷམ་ཕུད་རོགས། (Please take off your shoes.),verb
+ཚེམ་བུ་རྒྱག (tshem bu rgyag),to sew,ཨ་མས་ཚེམ་བུ་རྒྱག་གི་འདུག (Mother is sewing.),verb
+འཐག (thag),to grind / to weave,རྩམ་པ་འཐག་གི་འདུག (He is grinding tsampa.),verb
+འདེགས (degs),to lift / to raise,སྒམ་འདེགས་རོགས། (Please lift the box.),verb
+དཀྲོལ (dkrol),to play (an instrument),ཁོང་གིས་སྒྲ་སྙན་དཀྲོལ་གྱི་འདུག (He is playing the lute.),verb
+མནན (mnan),to press,མཐེབ་གནོན་མནན་རོགས། (Please press the button.),verb
+བཤིག (bshig),to destroy / to demolish,ཁང་པ་རྙིང་པ་བཤིག་སོང་། (The old house was demolished.),verb
+རྩིག (rtsig),to build (a wall),ཁོང་ཚོས་ཁང་པ་རྩིག་གི་འདུག (They are building a house.),verb
+ཁས་ལེན (khas len),to promise / to admit,ཁོང་གིས་ཁས་ལེན་བྱས་སོང་། (He promised.),verb
+འབོད (bod),to call / to summon,མིང་ནས་འབོད་ཀྱི་འདུག (He is calling by name.),verb
+ཁ་པར་གཏོང (kha par gtong),to make a phone call,ང་ཁ་པར་གཏོང་གི་ཡིན། (I will make a phone call.),verb
+ཐུག (thug),to meet,སང་ཉིན་ཐུག་གི་ཡིན། (We will meet tomorrow.),verb
+མཇལ (mjal),to meet (honorific) / to visit (a temple),བླ་མ་མཇལ་གྱི་ཡིན། (I will meet the lama.),verb
+ཕྱག་འཚལ (phyag tshal),to prostrate,ལྷ་ཁང་ལ་ཕྱག་འཚལ་གྱི་ཡིན། (I will prostrate at the temple.),verb
+སྨོན་ལམ་རྒྱག (smon lam rgyag),to pray,ང་སྨོན་ལམ་རྒྱག་གི་ཡིན། (I will pray.),verb
+སྒོམ (sgom),to meditate,ཁོང་སྒོམ་རྒྱག་གི་འདུག (He is meditating.),verb
+མཆོད (mchod),to offer / to worship,མཆོད་མེ་མཆོད་ཀྱི་ཡིན། (I will offer a butter lamp.),verb
+སྐོར་བ་རྒྱག (skor ba rgyag),to circumambulate,ང་གླིང་ཁོར་སྐོར་བ་རྒྱག་གི་ཡིན། (I will circumambulate the temple.),verb
+འདོན (don),to recite / to chant,ཞལ་འདོན་འདོན་གྱི་འདུག (He is reciting prayers.),verb
+བརྗོད (brjod),to express / to state,བསམ་ཚུལ་བརྗོད་རོགས། (Please state your opinion.),verb
+པར་རྒྱག (par rgyag),to photograph / to print,ང་པར་རྒྱག་གི་ཡིན། (I will take a photo.),verb
+བཤུ (bshu),to copy / to peel,ཡི་གེ་བཤུ་རོགས། (Please copy the text.),verb
+མྱོང (myong),to taste / to experience,ཁ་ལག་མྱོང་རོགས། (Please taste the food.),verb
+སྣོམ (snom),to smell,མེ་ཏོག་སྣོམ་གྱི་འདུག (She is smelling the flower.),verb
+རེག (reg),to touch,དེ་ལ་རེག་མ་གནང་། (Do not touch that.),verb
+ཐོས (thos),to hear (literary),གཏམ་དེ་ཐོས་སོང་། (I heard that news.),verb
+ནོར (nor),to be mistaken / to err,ངས་ནོར་སོང་། (I made a mistake.),verb
+ཐག་གཅོད (thag gcod),to decide,ཁྱེད་རང་གིས་ཐག་གཅོད་རོགས། (Please decide.),verb
+འདེམས (dems),to choose / to select,གཅིག་འདེམས་རོགས། (Please choose one.),verb
+བསྡུར (bsdur),to compare,གཉིས་པོ་བསྡུར་རོགས། (Please compare the two.),verb
+རྩིས་རྒྱག (rtsis rgyag),to calculate,རྩིས་རྒྱག་རོགས། (Please calculate it.),verb
+ཚོད་དཔག་བྱེད (tshod dpag byed),to guess / to estimate,ཚོད་དཔག་བྱེད་རོགས། (Please guess.),verb
+ངོ་ཤེས (ngo shes),to know (a person) / to recognize,ང་ཁོང་ངོ་ཤེས་ཀྱི་ཡོད། (I know him.),verb
+བློ་འཛིན་བྱེད (blo dzin byed),to memorize,ཚིག་གསར་པ་བློ་འཛིན་བྱེད་ཀྱི་ཡིན། (I will memorize the new words.),verb
+འཆར་གཞི་འདིང (char gzhi ding),to plan,ང་ཚོས་འཆར་གཞི་འདིང་གི་ཡིན། (We will make a plan.),verb
+གྲ་སྒྲིག་བྱེད (gra sgrig byed),to prepare,ང་གྲ་སྒྲིག་བྱེད་ཀྱི་ཡིན། (I will prepare.),verb
+འགྲེལ་བཤད་རྒྱག (grel bshad rgyag),to explain,འགྲེལ་བཤད་རྒྱག་རོགས། (Please explain.),verb
+གསལ་བསྒྲགས་བྱེད (gsal bsgrags byed),to announce,གསར་འགྱུར་གསལ་བསྒྲགས་བྱས་སོང་། (The news was announced.),verb
+ཁོང་ཁྲོ་ལང (khong khro lang),to get angry,ཁོང་ཁྲོ་མ་ལང་རོགས། (Please do not get angry.),verb
+སེམས་ཁྲལ་བྱེད (sems khral byed),to worry,སེམས་ཁྲལ་མ་བྱེད། (Do not worry.),verb
+ངོ་ཚ (ngo tsha),to be embarrassed / to be shy,ཁོང་ངོ་ཚ་གི་འདུག (He is embarrassed.),verb
+ཧང་སང (hang sang),to be amazed / to be surprised,ང་ཧང་སང་སོང་། (I was amazed.),verb
+ཕྲག་དོག་བྱེད (phrag dog byed),to be jealous,ཕྲག་དོག་མ་བྱེད། (Do not be jealous.),verb
+ཞེད (zhed),to dread / to fear,ནག་ཁུང་ལ་ཞེད་ཀྱི་འདུག (He fears the dark.),verb
+སྐྱོ (skyo),to be sad,ང་སེམས་པ་སྐྱོ་གི་འདུག (I feel sad.),verb
+ཐང་ཆད (thang chad),to be tired,ང་ཐང་ཆད་སོང་། (I am tired.),verb
+ལྟོགས (ltogs),to be hungry,ང་གྲོད་ཁོག་ལྟོགས་ཀྱི་འདུག (I am hungry.),verb
+ཁ་སྐོམ (kha skom),to be thirsty,ང་ཁ་སྐོམ་གྱི་འདུག (I am thirsty.),verb
+འཁྱགས (khyags),to freeze / to be very cold,ཆུ་འཁྱགས་སོང་། (The water froze.),verb
+གཉིད་ཁུག (gnyid khug),to fall asleep,བྱིས་པ་གཉིད་ཁུག་སོང་། (The child fell asleep.),verb
+གཉིད་སད (gnyid sad),to wake up,ང་ཞོགས་པ་གཉིད་སད་སོང་། (I woke up in the morning.),verb
+རྨི་ལམ་གཏོང (rmi lam gtong),to dream,མདང་དགོང་རྨི་ལམ་བཏང་སོང་། (I dreamed last night.),verb
+འཚམས་འདྲི་ཞུ (tshams dri zhu),to greet,ང་ཁོང་ལ་འཚམས་འདྲི་ཞུ་གི་ཡིན། (I will greet him.),verb
+ཐུགས་རྗེ་ཆེ་ཟེར (thugs rje che zer),to thank,ཁོང་ལ་ཐུགས་རྗེ་ཆེ་ཟེར་གྱི་ཡིན། (I will thank him.),verb
+དགོངས་དག་ཞུ (dgongs dag zhu),to apologize,ང་དགོངས་དག་ཞུ་གི་ཡིན། (I apologize.),verb
+སྐད་ཆ་བཤད (skad cha bshad),to talk / to converse,ང་ཚོ་སྐད་ཆ་བཤད་ཀྱི་ཡིན། (We will talk.),verb
+རྩོད་པ་རྒྱག (rtsod pa rgyag),to argue / to debate,གྲྭ་པ་ཚོ་རྩོད་པ་རྒྱག་གི་འདུག (The monks are debating.),verb
+འཛིང (dzing),to fight,བྱིས་པ་གཉིས་འཛིང་གི་འདུག (The two children are fighting.),verb
+མོས་མཐུན་བྱེད (mos mthun byed),to agree,ང་མོས་མཐུན་བྱེད་ཀྱི་ཡོད། (I agree.),verb
+ངོ་རྒོལ་བྱེད (ngo rgol byed),to oppose / to protest,ཁོང་ཚོས་ངོ་རྒོལ་བྱེད་ཀྱི་འདུག (They are protesting.),verb
+བསྟོད (bstod),to praise,དགེ་རྒན་གྱིས་སློབ་མ་བསྟོད་སོང་། (The teacher praised the student.),verb
+སྐྱོན་བརྗོད་བྱེད (skyon brjod byed),to criticize,སྐྱོན་བརྗོད་མ་བྱེད། (Do not criticize.),verb
+སྐུལ (skul),to urge / to encourage,ཁོང་གིས་ང་ལ་སྐུལ་སོང་། (He urged me.),verb
+ཞུ (zhu),to request / to say (humble),ང་ཞུ་གི་ཡིན། (I will request.),verb
+རྒྱབ་སྐྱོར་བྱེད (rgyab skyor byed),to support,ང་ཁྱེད་རང་ལ་རྒྱབ་སྐྱོར་བྱེད་ཀྱི་ཡིན། (I will support you.),verb
+མཉམ་ལས་བྱེད (mnyam las byed),to cooperate,ང་ཚོ་མཉམ་ལས་བྱེད་ཀྱི་ཡིན། (We will cooperate.),verb
+འགྲན་བསྡུར་བྱེད (gran bsdur byed),to compete,ཁོང་ཚོ་འགྲན་བསྡུར་བྱེད་ཀྱི་འདུག (They are competing.),verb
+རྒྱལ (rgyal),to win,ང་ཚོའི་རུ་ཁག་རྒྱལ་སོང་། (Our team won.),verb
+ཕམ (pham),to lose / to be defeated,ཁོང་ཚོ་ཕམ་སོང་། (They lost.),verb
+ཐོབ (thob),to obtain / to receive,ང་ལ་གོ་སྐབས་ཐོབ་སོང་། (I got an opportunity.),verb
+རག (rag),to get / to obtain (colloquial),ང་ལ་དེབ་གསར་པ་རག་སོང་། (I got a new book.),verb
+ཉེས་ཆད་གཏོང (nyes chad gtong),to punish,ཉེས་ཆད་གཏོང་གི་མ་རེད། (He will not be punished.),verb
+རྐུ (rku),to steal,རྐུ་མ་རྐུ་མི་ཉན། (One must not steal.),verb
+མགོ་སྐོར་གཏོང (mgo skor gtong),to deceive / to trick,ཁོང་གིས་ང་ལ་མགོ་སྐོར་བཏང་སོང་། (He tricked me.),verb
+རྫུན་བཤད (rdzun bshad),to lie,རྫུན་མ་བཤད། (Do not lie.),verb
+སྐོར (skor),to turn / to rotate,འཁོར་ལོ་སྐོར་རོགས། (Please turn the wheel.),verb
+འཁོར (khor),to revolve / to circle back,ས་གཞི་ཉི་མའི་མཐའ་ལ་འཁོར་གྱི་རེད། (The earth revolves around the sun.),verb
+ཕེབས (phebs),to come / to go (honorific),ནང་ལ་ཕེབས་རོགས། (Please come in.),verb
+བཞུགས (bzhugs),to sit / to stay (honorific),འདིར་བཞུགས་རོགས། (Please sit here.),verb
+གནས (gnas),to dwell / to remain,ཁོང་ལྷ་སར་གནས་ཀྱི་ཡོད་རེད། (He dwells in Lhasa.),verb
+འཁྱམ (khyam),to wander / to roam,ཁོང་གྲོང་ཁྱེར་ནང་འཁྱམ་གྱི་འདུག (He is wandering in the city.),verb
+རྒལ (rgal),to cross (a river),གཙང་པོ་རྒལ་གྱི་ཡིན། (I will cross the river.),verb
+ཐར (thar),to escape / to be freed,ཁོང་ཉེན་ཁ་ནས་ཐར་སོང་། (He escaped from danger.),verb
+ལྡོག (ldog),to turn back / to reverse,ལམ་ནས་ཕྱིར་ལྡོག་སོང་། (He turned back on the way.),verb
+འགོར (gor),to take time / to be delayed,དུས་ཚོད་མང་པོ་འགོར་སོང་། (It took a lot of time.),verb
+འཕྲད (phrad),to meet / to encounter,ལམ་ལ་གྲོགས་པོ་འཕྲད་སོང་། (I met a friend on the road.),verb
+སྐྱོད (skyod),to move / to proceed,མདུན་ལ་སྐྱོད་རོགས། (Please move forward.),verb
+སྤོ (spo),to move (house) / to relocate,ང་ཚོ་ཁང་པ་གསར་པར་སྤོ་གི་ཡིན། (We will move to a new house.),verb
+སྒུལ (sgul),to move / to shake (something),ཅོག་ཙེ་མ་སྒུལ། (Do not move the table.),verb
+དཀྲུག (dkrug),to stir / to agitate,ཇ་དཀྲུག་རོགས། (Please stir the tea.),verb
+སྐྱེལ (skyel),to deliver / to escort,ང་ཁྱེད་རང་ནང་ལ་སྐྱེལ་གྱི་ཡིན། (I will take you home.),verb
+འདྲེན (dren),to draw / to invite,མགྲོན་པོ་འདྲེན་གྱི་ཡིན། (We will invite guests.),verb
+ཕྱག་དར་རྒྱག (phyag dar rgyag),to sweep,ང་ཁང་པ་ཕྱག་དར་རྒྱག་གི་ཡིན། (I will sweep the room.),verb
+མེ་སྤར (me spar),to light a fire,མེ་སྤར་རོགས། (Please light the fire.),verb
+གློག་སྤར (glog spar),to turn on the light,གློག་སྤར་རོགས། (Please turn on the light.),verb
+སྒྲིག (sgrig),to arrange / to assemble,དེབ་ཚོ་སྒྲིག་རོགས། (Please arrange the books.),verb
+འཛུགས (dzugs),to establish / to plant,སློབ་གྲྭ་གསར་པ་འཛུགས་ཀྱི་རེད། (A new school will be established.),verb
+སྐྱུར (skyur),to abandon / to throw away,གད་སྙིགས་སྐྱུར་མ་གནང་། (Do not throw away trash.),verb
+དོར (dor),to discard / to give up,བསམ་བློ་ངན་པ་དོར་རོགས། (Give up bad thoughts.),verb
+ཉར (nyar),to keep / to store,འདི་ཡག་པོ་ཉར་རོགས། (Please keep this safe.),verb
+བཞེས (bzhes),to eat / to drink (honorific),ཇ་བཞེས་རོགས། (Please have some tea.),verb
+ཆགས (chags),to become / to form,འདི་གྲོང་ཁྱེར་ཆེན་པོ་ཆགས་སོང་། (This became a big city.),verb
+འགྱུར (gyur),to change / to become,གནམ་གཤིས་འགྱུར་གྱི་འདུག (The weather is changing.),verb
+ཡལ (yal),to fade / to vanish,སྤྲིན་པ་ཡལ་སོང་། (The clouds vanished.),verb
+ཤར (shar),to rise (sun),ཉི་མ་ཤར་སོང་། (The sun rose.),verb
+ནུབ (nub),to set (sun),ཉི་མ་ནུབ་ཀྱི་འདུག (The sun is setting.),verb
+འབར (bar),to blaze / to burn,མེ་འབར་གྱི་འདུག (The fire is blazing.),verb
+བཞུ (bzhu),to melt,གངས་བཞུ་གི་འདུག (The snow is melting.),verb
+སྐམ (skam),to dry,གོས་སྐམ་སོང་། (The clothes dried.),verb
+རུལ (rul),to rot / to decay,ཤིང་ཏོག་རུལ་སོང་། (The fruit rotted.),verb
+སྨིན (smin),to ripen,འབྲས་བུ་སྨིན་སོང་། (The fruit ripened.),verb
+རྒས (rgas),to grow old,མི་ཚང་མ་རྒས་ཀྱི་རེད། (Everyone grows old.),verb
+འཚོ (tsho),to live / to survive,ཁོང་ཚོ་གྲོང་གསེབ་ལ་འཚོ་གི་ཡོད་རེད། (They live in the village.),verb
+གསོན (gson),to be alive,ཉ་དེ་ད་དུང་གསོན་གྱི་འདུག (The fish is still alive.),verb
+འཕེལ (phel),to increase / to grow,མི་གྲངས་འཕེལ་གྱི་འདུག (The population is increasing.),verb
+འགྲིབ (grib),to decrease / to decline,ཚོང་འགྲིབ་སོང་། (Business declined.),verb
+ཤོར (shor),to lose / to slip away,དུས་ཚོད་ཤོར་སོང་། (Time slipped away.),verb
+འཛག (dzag),to drip / to leak,ཆུ་འཛག་གི་འདུག (Water is leaking.),verb
+འགྲངས (grangs),to be full (after eating),ང་འགྲངས་སོང་། (I am full.),verb
+ཟིན (zin),to be caught / to be completed,ལས་ཀ་ཟིན་སོང་། (The work is completed.),verb
+བྱུང (byung),to happen / to receive,ག་རེ་བྱུང་སོང་། (What happened?),verb
+གྲུབ (grub),to be accomplished,དམིགས་ཡུལ་གྲུབ་སོང་། (The goal was accomplished.),verb
+འདང (dang),to suffice / to be enough,ཁ་ལག་འདང་གི་འདུག (The food is enough.),verb
+འགྲིག (grig),to be okay / to be correct,འདི་འགྲིག་གི་འདུག (This is okay.),verb
+འཕྲོད (phrod),to suit / to agree with (health),ཁ་ལག་འདི་ང་ལ་འཕྲོད་ཀྱི་མི་འདུག (This food does not suit me.),verb
+ཕན (phan),to benefit / to help,སྨན་འདི་ཕན་གྱི་འདུག (This medicine helps.),verb
+གནོད (gnod),to harm,ཐ་མག་ལུས་པོ་ལ་གནོད་ཀྱི་རེད། (Smoking harms the body.),verb
+སྐྱོང (skyong),to care for / to govern,རྒྱལ་པོས་རྒྱལ་ཁབ་སྐྱོང་གི་རེད། (The king governs the country.),verb
+བདག་པོ་རྒྱག (bdag po rgyag),to take care of / to look after,བྱིས་པར་བདག་པོ་རྒྱག་རོགས། (Please look after the child.),verb
+དོ་དམ་བྱེད (do dam byed),to manage / to supervise,ཁོང་གིས་ལས་ཁུངས་དོ་དམ་བྱེད་ཀྱི་རེད། (He manages the office.),verb
+འགན་འཁུར (gan khur),to take responsibility,ངས་འགན་འཁུར་གྱི་ཡིན། (I will take responsibility.),verb
+འཁུར (khur),to carry (a load),ཁོང་གིས་དོ་པོ་འཁུར་གྱི་འདུག (He is carrying a load.),verb
+ཐེག (theg),to bear / to support (weight),སྒམ་འདི་ལྗིད་པོ་ཐེག་གི་མི་འདུག (I cannot bear this heavy box.),verb
+ཁྱབ (khyab),to spread / to pervade,གཏམ་དེ་ཁྱབ་སོང་། (The news spread.),verb
+གཏོར (gtor),to scatter,ས་བོན་གཏོར་གྱི་འདུག (He is scattering seeds.),verb
+སྒྲུབ (sgrub),to accomplish / to practice,དམ་ཆོས་སྒྲུབ་ཀྱི་ཡིན། (I will practice the dharma.),verb
+བཟློག (bzlog),to repel / to reverse,བར་ཆད་བཟློག་རོགས། (Please avert the obstacles.),verb
+མངག (mngag),to dispatch / to send (a person),མི་ཞིག་མངག་གི་ཡིན། (I will send someone.),verb
+བཅོལ (bcol),to entrust,ལས་ཀ་འདི་ཁྱེད་ལ་བཅོལ་གྱི་ཡིན། (I entrust this work to you.),verb
+བཀོལ (bkol),to employ / to put to use,ལག་ཆ་འདི་བཀོལ་རོགས། (Please use this tool.),verb
+གནང (gnang),to give / to do (honorific),རོགས་པ་གནང་རོགས། (Please help.),verb
+མཁྱེན (mkhyen),to know (honorific),ཁོང་གིས་མཁྱེན་གྱི་རེད། (He knows.),verb
+གཟིགས (gzigs),to look / to see (honorific),འདིར་གཟིགས་རོགས། (Please look here.),verb
+གསུང (gsung),to say / to speak (honorific),བླ་མས་གསུང་གི་འདུག (The lama is speaking.),verb
+མཛད (mdzad),to do (high honorific),རྒྱལ་བས་མཛད་པ་མཛད་སོང་། (The Buddha performed deeds.),verb
+ཚོང་རྒྱག (tshong rgyag),to do business / to trade,ཁོང་གིས་ཚོང་རྒྱག་གི་རེད། (He does business.),verb
+རིན་པ་སྤྲོད (rin pa sprod),to pay,ངས་རིན་པ་སྤྲོད་ཀྱི་ཡིན། (I will pay.),verb
+གུས་ཞབས་བྱེད (gus zhabs byed),to respect,རྒན་པར་གུས་ཞབས་བྱེད་དགོས། (One must respect elders.),verb
+ཡིག་ཚད་གཏོང (yig tshad gtong),to take an exam,སང་ཉིན་ཡིག་ཚད་གཏོང་གི་ཡིན། (I will take an exam tomorrow.),verb
+སློབ་སྦྱོང་བྱེད (slob sbyong byed),to study,ང་བོད་ཡིག་སློབ་སྦྱོང་བྱེད་ཀྱི་ཡོད། (I am studying Tibetan.),verb
+ཟིན་ཐོ་རྒྱག (zin tho rgyag),to take notes,ཟིན་ཐོ་རྒྱག་རོགས། (Please take notes.),verb
+གཏམ་བཤད་བྱེད (gtam bshad byed),to give a speech,ཁོང་གིས་གཏམ་བཤད་བྱེད་ཀྱི་རེད། (He will give a speech.),verb
+འགྲུལ་བཞུད་བྱེད (grul bzhud byed),to travel,ང་བོད་ལ་འགྲུལ་བཞུད་བྱེད་ཀྱི་ཡིན། (I will travel to Tibet.),verb
+མིག་བཙུམ (mig btsum),to close one's eyes,མིག་བཙུམ་རོགས། (Please close your eyes.),verb
+ལག་པ་གཡུག (lag pa g.yug),to wave one's hand,ཁོང་གིས་ལག་པ་གཡུག་གི་འདུག (He is waving his hand.),verb
+སེམས་ཤུགས་སྤར (sems shugs spar),to encourage,གྲོགས་པོར་སེམས་ཤུགས་སྤར་རོགས། (Please encourage your friend.),verb
+ཡིད་སྨོན་བྱེད (yid smon byed),to admire,ང་ཁོང་ལ་ཡིད་སྨོན་བྱེད་ཀྱི་ཡོད། (I admire him.),verb
+ཞིང་ལས་བྱེད (zhing las byed),to farm,ཁོང་ཚོས་ཞིང་ལས་བྱེད་ཀྱི་རེད། (They farm.),verb
+སོ་རྒྱག (so rgyag),to bite,ཁྱིས་སོ་རྒྱག་གི་རེད། (The dog bites.),verb
+འགྲེམས (grems),to display / to distribute,པར་རིས་འགྲེམས་ཀྱི་འདུག (Pictures are being displayed.),verb
+བརྟག་དཔྱད་བྱེད (brtag dpyad byed),to examine / to inspect,སྨན་པས་ནད་པ་བརྟག་དཔྱད་བྱེད་ཀྱི་འདུག (The doctor is examining the patient.),verb
+ཞིབ་འཇུག་བྱེད (zhib jug byed),to research / to investigate,ཁོང་གིས་ལོ་རྒྱུས་ཞིབ་འཇུག་བྱེད་ཀྱི་རེད། (He researches history.),verb
+དོ་སྣང་བྱེད (do snang byed),to pay attention / to notice,དོ་སྣང་བྱེད་རོགས། (Please pay attention.),verb
+རྩོམ (rtsom),to compose / to write (a work),ཁོང་གིས་སྙན་ངག་རྩོམ་གྱི་རེད། (He composes poetry.),verb
+འགོག (gog),to block / to prevent,ནད་ཡམས་འགོག་དགོས་རེད། (The epidemic must be prevented.),verb
+གླེང (gleng),to discuss / to mention,གནད་དོན་དེ་གླེང་གི་ཡིན། (We will discuss that issue.),verb
+གྲོས་བསྡུར་བྱེད (gros bsdur byed),to consult / to discuss,ང་ཚོ་གྲོས་བསྡུར་བྱེད་ཀྱི་ཡིན། (We will consult together.),verb
+ལྡིང (lding),to soar / to float,གླག་གནམ་ལ་ལྡིང་གི་འདུག (The eagle is soaring in the sky.),verb
+ཞོན (zhon),to ride (a horse / vehicle),ང་རྟ་ཞོན་གྱི་ཡིན། (I will ride a horse.),verb
+ཚོད་ལྟ་བྱེད (tshod lta byed),to try / to test,ཚོད་ལྟ་བྱེད་རོགས། (Please try it.),verb
+འབད་བརྩོན་བྱེད (bad brtson byed),to make an effort / to strive,ཁོང་གིས་འབད་བརྩོན་བྱེད་ཀྱི་འདུག (He is making an effort.),verb
+ལག་ལེན་བྱེད (lag len byed),to implement / to apply,འཆར་གཞི་ལག་ལེན་བྱེད་ཀྱི་ཡིན། (We will implement the plan.),verb
+བརྡ་གཏོང (brda gtong),to signal / to inform,ང་ལ་བརྡ་གཏོང་རོགས། (Please inform me.),verb
+ལམ་སྟོན་བྱེད (lam ston byed),to guide / to instruct,དགེ་རྒན་གྱིས་ལམ་སྟོན་བྱེད་ཀྱི་རེད། (The teacher gives guidance.),verb
+ངོས་ལེན་བྱེད (ngos len byed),to accept / to acknowledge,ངས་ནོར་འཁྲུལ་ངོས་ལེན་བྱེད་ཀྱི་ཡིན། (I will acknowledge the mistake.),verb
+མུ་མཐུད་བྱེད (mu mthud byed),to continue,ལས་ཀ་མུ་མཐུད་བྱེད་རོགས། (Please continue the work.),verb
+ཕྱིར་འཐེན་བྱེད (phyir then byed),to withdraw / to retreat,ཁོང་ཚོ་ཕྱིར་འཐེན་བྱས་སོང་། (They withdrew.),verb
+ངལ་གསོ་རྒྱག (ngal gso rgyag),to rest,ཏོག་ཙམ་ངལ་གསོ་རྒྱག་རོགས། (Please rest a little.),verb
+འཆམ་འཆམ་ལ་འགྲོ (cham cham la gro),to go for a walk,ང་འཆམ་འཆམ་ལ་འགྲོ་གི་ཡིན། (I will go for a walk.),verb
+གོམས (goms),to be accustomed / to get used to,ང་གནམ་གཤིས་ལ་གོམས་སོང་། (I got used to the weather.),verb
+ལྷག (lhag),to remain / to be left over,ཁ་ལག་ལྷག་སོང་། (Some food is left over.),verb

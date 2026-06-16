@@ -1,0 +1,46 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+{{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}{{end}}
+
+<form method="POST" action="/decks/new-ai">
+    <div>
+        <label for="name">Deck Name</label>
+        <input type="text" id="name" name="name" required
+            placeholder="e.g. German Verbs 1"
+            value="{{if .Data}}{{.Data.Name}}{{end}}">
+    </div>
+
+    <div>
+        <label for="language">Target Language</label>
+        <input type="text" id="language" name="language" required
+            placeholder="e.g. German, Spanish, French"
+            value="{{if .Data}}{{.Data.Language}}{{end}}">
+    </div>
+
+    <div>
+        <label for="prompt">What to generate</label>
+        <textarea id="prompt" name="prompt" required
+            placeholder="e.g. 300 most used verbs, common kitchen vocabulary">{{if .Data}}{{.Data.Prompt}}{{end}}</textarea>
+    </div>
+
+    <div>
+        <label>Mode</label>
+        <div class="radio-group">
+            <label><input type="radio" name="mode" value="srs"
+                {{if not .Data}}checked{{else if eq .Data.Mode "srs"}}checked{{end}}>
+                SRS</label>
+            <label><input type="radio" name="mode" value="linear"
+                {{if .Data}}{{if eq .Data.Mode "linear"}}checked{{end}}{{end}}>
+                Linear</label>
+        </div>
+    </div>
+
+    <div>
+        <button type="submit" class="btn btn-primary">Generate Cards</button>
+        <a href="/decks/new" class="btn">Back</a>
+    </div>
+</form>
+{{template "_footer" .}}

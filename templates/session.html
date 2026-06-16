@@ -1,0 +1,72 @@
+{{template "_header" .}}
+{{$deck := .Data.Deck}}
+{{$session := .Data.Session}}
+{{$card := .Data.Card}}
+
+{{if .Data.Empty}}
+<div class="empty-state">
+    <h2>Nothing to study!</h2>
+    <p>{{if eq $deck.Mode "srs"}}No cards are due for review today.{{else}}All cards have been studied.{{end}}</p>
+    <a href="/decks/{{$deck.ID}}" class="btn btn-primary">Back to Deck</a>
+</div>
+{{else}}
+
+<div class="progress">
+    <div class="progress-fill" style="width: {{.Data.Progress}}%"></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 0.5rem 0 1rem;">
+    <span style="color: var(--text-muted);">Card {{add $session.Position 1}} of {{len $session.CardQueue}}</span>
+    <form method="POST" action="/decks/{{$deck.ID}}/session/end"
+          onsubmit="return confirm('End this session early?')">
+        <input type="hidden" name="session_id" value="{{$session.ID}}">
+        <button type="submit" class="btn btn-sm">End Session</button>
+    </form>
+</div>
+
+{{if eq $session.QuizMode "mc"}}
+<div class="session-card">
+    <div class="front-text">{{$card.Front}}</div>
+    {{if $card.Example}}
+    <div class="example-text">{{$card.Example}}</div>
+    {{end}}
+    <p style="color: var(--text-muted); margin: 1rem 0 0.5rem;">What does this mean?</p>
+    <div class="mc-options">
+        {{range .Data.MCOptions}}
+        <form method="POST" action="/decks/{{$deck.ID}}/session/answer">
+            <input type="hidden" name="session_id" value="{{$session.ID}}">
+            <input type="hidden" name="card_id" value="{{$card.ID}}">
+            <button type="submit" name="choice" value="{{.}}" class="btn mc-option">{{.}}</button>
+        </form>
+        {{end}}
+    </div>
+</div>
+{{else}}
+<div class="session-card" id="flashcard">
+    <div>
+        <div class="front-text">{{$card.Front}}</div>
+        {{if $card.Example}}
+        <div class="example-text">{{$card.Example}}</div>
+        {{end}}
+    </div>
+
+    <div class="back-text" id="card-back">{{$card.Back}}</div>
+
+    <button class="btn card-reveal-btn" id="reveal-btn">Reveal</button>
+
+    <form method="POST" action="/decks/{{$deck.ID}}/session/answer" id="answer-form" style="display:none;">
+        <input type="hidden" name="session_id" value="{{$session.ID}}">
+        <input type="hidden" name="card_id" value="{{$card.ID}}">
+        <div class="btn-group" style="justify-content: center; margin-top: 1rem;">
+            <button type="submit" name="rating" value="0" class="btn btn-danger">Again</button>
+            <button type="submit" name="rating" value="1" class="btn">Hard</button>
+            <button type="submit" name="rating" value="2" class="btn btn-primary">Good</button>
+            <button type="submit" name="rating" value="3" class="btn">Easy</button>
+        </div>
+    </form>
+</div>
+{{end}}
+
+{{end}}
+
+<script src="/static/card.js"></script>
+{{template "_footer" .}}

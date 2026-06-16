@@ -1,0 +1,33 @@
+{{template "_header" .}}
+{{$deck := .Data.Deck}}
+{{$session := .Data.Session}}
+{{$accuracy := .Data.Accuracy}}
+
+<div class="page-header">
+    <h1>Session Complete</h1>
+</div>
+
+<div class="summary-stats">
+    <div class="stat">
+        <div class="value">{{$session.Total}}</div>
+        <div class="label">Reviewed</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{$session.Correct}}</div>
+        <div class="label">Correct</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{$accuracy}}%</div>
+        <div class="label">Accuracy</div>
+    </div>
+    <div class="stat">
+        <div class="value">{{.Data.DueTomorrow}}</div>
+        <div class="label">Due Tomorrow</div>
+    </div>
+</div>
+
+<div class="btn-group" style="justify-content: center; margin-top: 2rem;">
+    <a href="/decks/{{$deck.ID}}/session" class="btn btn-primary">Study Again</a>
+    <a href="/decks/{{$deck.ID}}" class="btn">Back to Deck</a>
+</div>
+{{template "_footer" .}}

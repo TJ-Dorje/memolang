@@ -1,0 +1,35 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Run the development server
+    cmd: go run .
+
+  build:
+    desc: Compile the binary
+    cmd: go build -o memolang .
+
+  test:
+    desc: Run all tests
+    cmd: go test ./...
+
+  test:srs:
+    desc: Run only the SM-2 unit tests
+    cmd: go test ./internal/srs/...
+
+  playwright:install:
+    desc: Install Playwright driver and Chromium (run once before test:e2e)
+    cmd: go run github.com/playwright-community/playwright-go/cmd/playwright install chromium
+
+  test:e2e:
+    desc: Run Playwright end-to-end tests (requires playwright:install to have been run)
+    cmd: go test ./test/e2e/... -v -count=1 -timeout 120s
+
+  db:reset:
+    desc: Delete the SQLite database (recreated automatically on next start)
+    cmd: rm -f memolang.db memolang.db-shm memolang.db-wal
+    prompt: This will delete all data. Continue?
+
+  tidy:
+    desc: Tidy go.mod / go.sum
+    cmd: go mod tidy

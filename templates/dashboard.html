@@ -1,0 +1,33 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>My Decks</h1>
+    <a href="/decks/new" class="btn btn-primary">+ New Deck</a>
+</div>
+
+<div class="deck-grid">
+    {{range .Data.Decks}}
+    <div class="deck-card">
+        <a href="/decks/{{.ID}}" class="deck-link" aria-label="Open {{.Name}}"></a>
+        <h2>{{.Name}}</h2>
+        <div class="meta">
+            {{.CardCount}} cards{{if .DueCount}}<span class="due-badge">{{.DueCount}} due</span>{{end}}
+        </div>
+        <div class="progress"><div class="progress-fill" style="width: {{.MasteryPct}}%"></div></div>
+        <div class="btn-group" style="margin-top: 0.75rem;">
+            <details class="study-menu">
+                <summary class="btn btn-primary btn-sm">Study ▾</summary>
+                <div class="study-options">
+                    <a href="/decks/{{.ID}}/session?mode=flashcard" class="btn btn-sm">Flashcards</a>
+                    <a href="/decks/{{.ID}}/session?mode=mc" class="btn btn-sm">Multiple Choice</a>
+                </div>
+            </details>
+        </div>
+    </div>
+    {{else}}
+    <div class="empty-state">
+        <p>No decks yet. Import your first language pack!</p>
+        <a href="/decks/new" class="btn btn-primary">Create Your First Deck</a>
+    </div>
+    {{end}}
+</div>
+{{template "_footer" .}}

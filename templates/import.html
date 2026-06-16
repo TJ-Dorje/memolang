@@ -1,0 +1,58 @@
+{{template "_header" .}}
+{{$deck := .Data.Deck}}
+{{$data := .Data}}
+
+<div class="page-header">
+    <h1>{{.Title}}</h1>
+</div>
+
+{{if $data.Error}}<div class="form-error">{{$data.Error}}</div>{{end}}
+
+<form method="POST" action="?step=preview" enctype="multipart/form-data">
+    <div>
+        <label for="csv">CSV File</label>
+        <input type="file" id="csv" name="csv" accept=".csv" required>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div>
+            <label for="front_col">Front column (0-based)</label>
+            <input type="text" id="front_col" name="front_col" value="{{if $data.FrontCol}}{{$data.FrontCol}}{{else}}0{{end}}">
+        </div>
+        <div>
+            <label for="back_col">Back column (0-based)</label>
+            <input type="text" id="back_col" name="back_col" value="{{if $data.BackCol}}{{$data.BackCol}}{{else}}1{{end}}">
+        </div>
+        <div>
+            <label for="example_col">Example column (optional)</label>
+            <input type="text" id="example_col" name="example_col" value="{{if $data.ExampleCol}}{{$data.ExampleCol}}{{else}}2{{end}}">
+        </div>
+        <div>
+            <label for="tags_col">Tags column (optional)</label>
+            <input type="text" id="tags_col" name="tags_col" value="{{if $data.TagsCol}}{{$data.TagsCol}}{{else}}3{{end}}">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Preview</button>
+</form>
+
+{{if $data.ShowExecute}}
+<div style="margin-top: 2rem;">
+    <h2>Preview ({{$data.TotalRows}} rows)</h2>
+    <table class="preview-table">
+        <tr><th>Front</th><th>Back</th><th>Example</th><th>Tags</th></tr>
+        {{range $data.Preview}}
+        <tr><td>{{.Front}}</td><td>{{.Back}}</td><td>{{.Example}}</td><td>{{.Tags}}</td></tr>
+        {{end}}
+    </table>
+
+    <form method="POST" action="?step=execute">
+        <input type="hidden" name="import_token" value="{{$data.ImportToken}}">
+        <div class="btn-group" style="margin-top: 1rem;">
+            <button type="submit" class="btn btn-primary">Import {{$data.TotalRows}} Cards</button>
+            <a href="/decks/{{$deck.ID}}" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{{end}}
+{{template "_footer" .}}
