@@ -14,6 +14,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOTOOLCHAIN=auto go build -o memolang .
 
 # Run stage
 FROM alpine:3.21
+LABEL org.opencontainers.image.source=https://github.com/TJ-Dorje/memolang
 RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
