@@ -32,3 +32,19 @@ CREATE TABLE IF NOT EXISTS study_sessions (
     started_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     ended_at    DATETIME
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS session_answers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
+    card_id     INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    correct     INTEGER NOT NULL,
+    given       TEXT    NOT NULL DEFAULT '',
+    answered_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_session_answers_session ON session_answers(session_id);

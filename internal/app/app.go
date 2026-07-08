@@ -13,6 +13,7 @@ func NewRouter(database *sql.DB) *gin.Engine {
 	r := gin.Default()
 	r.SetFuncMap(template.FuncMap{
 		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
 	})
 	r.LoadHTMLGlob("templates/*.html")
 	r.Static("/static", "./static")
@@ -43,6 +44,10 @@ func NewRouter(database *sql.DB) *gin.Engine {
 	r.GET("/cards/:id/edit", h.EditCardForm)
 	r.POST("/cards/:id/edit", h.UpdateCard)
 	r.POST("/cards/:id/delete", h.DeleteCard)
+
+	r.GET("/settings", h.SettingsPage)
+	r.POST("/settings", h.SaveSettings)
+	r.POST("/settings/test", h.TestLLMConnection)
 
 	return r
 }

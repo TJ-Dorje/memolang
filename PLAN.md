@@ -551,3 +551,9 @@ Total: 28 tasks across 6 milestones.
 | M6 — UI Polish | T-025..028 | ✅ Complete |
 
 Known issues and deviations from spec are tracked in `ISSUES_TODO.md`.
+
+## DevOps
+
+### T-029: Use Infisical for secrets
+**What:** When secrets are needed (API keys, passwords, etc.), create them in Infisical and reference them via `InfisicalSecret` CRD + `secretKeyRef` in the k8s deployment manifest. No YAML should contain hardcoded secrets, passwords, or tokens.  
+**Template:** follow the pattern in `homelab/apps/n8n/infisical-secret.yaml`.

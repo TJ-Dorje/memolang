@@ -8,7 +8,20 @@
       "Bash(go mod *)",
       "Bash(go vet *)",
       "Bash(go run *)",
-      "Bash(awk *)"
+      "Bash(awk *)",
+      "Bash(sqlite3 memolang.db '.schema settings')",
+      "Bash(gofmt -w internal/handlers/data.go test/e2e)",
+      "Bash(gh auth *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('auths',{}\\).keys\\(\\)\\), 'credsStore:', d.get\\('credsStore'\\)\\)\")",
+      "Bash(docker push *)",
+      "Bash(git -C /Users/dmunkuev/workspace/homelab status --short)",
+      "Bash(git -C /Users/dmunkuev/workspace/homelab log --oneline -3)",
+      "Bash(git -C /Users/dmunkuev/workspace/homelab remote -v)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'ci: build and push image to GHCR on main *)",
+      "Bash(git push *)",
+      "Bash(gh run *)",
+      "Bash(git commit -m 'build: add Dockerfile and compose file *)"
     ],
     "deny": [
       "Bash(grep *)"

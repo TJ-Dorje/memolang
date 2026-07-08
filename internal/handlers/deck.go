@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"errors"
 
 	"memolang/internal/ai"
 	"memolang/internal/models"
@@ -105,17 +106,30 @@ func (h *Handler) AIExecute(c *gin.Context) {
 	}
 	fd := v.(AIFormData)
 
-	aiClient, err := ai.NewClient()
+	cfg, err := ai.LoadConfig(h.DB)
 	if err != nil {
-		log.Printf("AIExecute: NewClient failed: %v", err)
-		fd.Error = "Failed to connect to LLM: " + err.Error()
+		log.Printf("AIExecute: LoadConfig failed: %v", err)
+		fd.Error = "Failed to load LLM settings: " + err.Error()
+		tok := h.storePending(fd)
+		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true&token="+tok)
+		return
+	}
+
+	provider, err := ai.New(cfg)
+	if err != nil {
+		log.Printf("AIExecute: ai.New failed: %v", err)
+		if errors.Is(err, ai.ErrNotConfigured) {
+			fd.Error = "No LLM provider configured. Set one up in Settings first."
+		} else {
+			fd.Error = "LLM configuration error: " + err.Error()
+		}
 		tok := h.storePending(fd)
 		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true&token="+tok)
 		return
 	}
 
 	log.Printf("AIExecute: calling GenerateCards...")
-	cards, err := aiClient.GenerateCards(fd.Language, fd.Prompt)
+	cards, err := provider.GenerateCards(c.Request.Context(), fd.Language, fd.Prompt)
 	if err != nil {
 		log.Printf("AIExecute: GenerateCards failed: %v", err)
 		fd.Error = "AI generation failed. You can retry."

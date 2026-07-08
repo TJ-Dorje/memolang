@@ -44,12 +44,15 @@ type ImportData struct {
 
 // SessionData is the data payload for the study session page.
 type SessionData struct {
-	Deck      models.Deck
-	Session   models.StudySession
-	Card      models.Card
-	Progress  float64
-	Empty     bool
-	MCOptions []string
+	Deck       models.Deck
+	Session    models.StudySession
+	Card       models.Card
+	Progress   float64
+	Empty      bool
+	MCOptions  []string
+	Feedback   bool
+	Answer     models.SessionAnswer
+	AnswerCard models.Card
 }
 
 // AIFormData is the data payload for the AI card generation form.
@@ -60,10 +63,22 @@ type AIFormData struct {
 	Mode     string
 	Error    string
 }
-	// SessionSummaryData is the data payload for the session summary page.
+
+// SettingsData is the data payload for the settings page.
+type SettingsData struct {
+	Provider  string
+	BaseURL   string
+	Model     string
+	HasAPIKey bool
+	Error     string
+}
+
+// SessionSummaryData is the data payload for the session summary page.
 type SessionSummaryData struct {
 	Deck        models.Deck
 	Session     models.StudySession
 	Accuracy    int
 	DueTomorrow int
+	Wrong       int
+	MissedCards []models.SessionAnswer
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -31,6 +32,10 @@ func (h *Handler) StartSession(c *gin.Context) {
 	}
 
 	if session == nil {
+		if c.Query("feedback") != "" {
+			c.Redirect(http.StatusSeeOther, "/decks/"+c.Param("id")+"/session")
+			return
+		}
 		var cardIDs []int64
 		if deck.Mode == "srs" {
 			cardIDs, err = models.GetDueCardIDs(h.DB, deckID, 50)
@@ -64,6 +69,25 @@ func (h *Handler) StartSession(c *gin.Context) {
 			return
 		}
 		session = &newSess
+	}
+
+	if fbID, err := strconv.ParseInt(c.Query("feedback"), 10, 64); err == nil {
+		ans, err := models.GetAnswerByID(h.DB, fbID)
+		if err == nil && ans != nil && ans.SessionID == session.ID {
+			card, err := models.GetCardByID(h.DB, ans.CardID)
+			if err == nil {
+				h.render(c, http.StatusOK, "session.html", PageData{
+					Title: deck.Name + " — Study",
+					Flash: h.getFlash(c),
+					Data: SessionData{
+						Deck: deck, Session: *session,
+						Feedback: true, Answer: *ans, AnswerCard: card,
+						Progress: float64(session.Position) / float64(len(session.CardQueue)) * 100,
+					},
+				})
+				return
+			}
+		}
 	}
 
 	if session.Position >= len(session.CardQueue) {
@@ -137,8 +161,25 @@ func (h *Handler) SubmitAnswer(c *gin.Context) {
 		}
 	} else {
 		r, _ := strconv.Atoi(c.PostForm("rating"))
+		if r < 0 {
+			r = 0
+		} else if r > 3 {
+			r = 3
+		}
 		rating = r
 		isCorrect = (rating >= 2)
+	}
+
+	var answerID int64
+	if c.PostForm("choice") != "" {
+		answerID, _ = models.RecordAnswer(h.DB, sessionID, cardID, isCorrect, c.PostForm("choice"))
+	} else {
+		labels := []string{"Again", "Hard", "Good", "Easy"}
+		given := "Unknown"
+		if rating >= 0 && rating <= 3 {
+			given = labels[rating]
+		}
+		answerID, _ = models.RecordAnswer(h.DB, sessionID, cardID, isCorrect, given)
 	}
 
 	state := srs.CardState{Interval: card.Interval, Ease: card.Ease, Repetitions: card.Repetitions}
@@ -150,7 +191,11 @@ func (h *Handler) SubmitAnswer(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/decks/"+c.Param("id")+"/session")
+	if c.PostForm("choice") != "" {
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/decks/%s/session?feedback=%d", c.Param("id"), answerID))
+	} else {
+		c.Redirect(http.StatusSeeOther, "/decks/"+c.Param("id")+"/session")
+	}
 }
 
 func (h *Handler) EndSessionEarly(c *gin.Context) {
@@ -183,6 +228,12 @@ func (h *Handler) SessionSummary(c *gin.Context) {
 		accuracy = session.Correct * 100 / session.Total
 	}
 
+	wrong := session.Total - session.Correct
+	var missedCards []models.SessionAnswer
+	if wrong > 0 {
+		missedCards, _ = models.GetSessionAnswers(h.DB, session.ID, true)
+	}
+
 	var dueTomorrow int
 	h.DB.QueryRow(
 		`SELECT COUNT(*) FROM cards WHERE deck_id = ? AND due_date = date('now', '+1 day')`,
@@ -197,6 +248,8 @@ func (h *Handler) SessionSummary(c *gin.Context) {
 			Session:     *session,
 			Accuracy:    accuracy,
 			DueTomorrow: dueTomorrow,
+			Wrong:       wrong,
+			MissedCards: missedCards,
 		},
 	})
 }

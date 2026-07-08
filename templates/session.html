@@ -3,7 +3,34 @@
 {{$session := .Data.Session}}
 {{$card := .Data.Card}}
 
-{{if .Data.Empty}}
+{{if .Data.Feedback}}
+<div class="progress">
+    <div class="progress-fill" style="width: {{.Data.Progress}}%"></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 0.5rem 0 1rem;">
+    <span style="color: var(--text-muted);">Card {{add $session.Position 1}} of {{len $session.CardQueue}}</span>
+    <span class="session-score">
+        <span class="score-right">✓ {{$session.Correct}}</span>
+        <span class="score-wrong">✗ {{sub $session.Total $session.Correct}}</span>
+    </span>
+    <form method="POST" action="/decks/{{$deck.ID}}/session/end"
+          onsubmit="return confirm('End this session early?')">
+        <input type="hidden" name="session_id" value="{{$session.ID}}">
+        <button type="submit" class="btn btn-sm">End Session</button>
+    </form>
+</div>
+
+<div class="session-card feedback {{if .Data.Answer.Correct}}feedback-correct{{else}}feedback-wrong{{end}}">
+    <div class="feedback-banner">{{if .Data.Answer.Correct}}✓ Correct!{{else}}✗ Wrong{{end}}</div>
+    <div class="front-text">{{.Data.AnswerCard.Front}}</div>
+    {{if not .Data.Answer.Correct}}
+    <div class="feedback-given">Your answer: <s>{{.Data.Answer.Given}}</s></div>
+    {{end}}
+    <div class="feedback-answer">Correct answer: <strong>{{.Data.AnswerCard.Back}}</strong></div>
+    {{if .Data.AnswerCard.Example}}<div class="example-text">{{.Data.AnswerCard.Example}}</div>{{end}}
+    <a href="/decks/{{.Data.Deck.ID}}/session" class="btn btn-primary">Next →</a>
+</div>
+{{else if .Data.Empty}}
 <div class="empty-state">
     <h2>Nothing to study!</h2>
     <p>{{if eq $deck.Mode "srs"}}No cards are due for review today.{{else}}All cards have been studied.{{end}}</p>
@@ -16,6 +43,10 @@
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; margin: 0.5rem 0 1rem;">
     <span style="color: var(--text-muted);">Card {{add $session.Position 1}} of {{len $session.CardQueue}}</span>
+    <span class="session-score">
+        <span class="score-right">✓ {{$session.Correct}}</span>
+        <span class="score-wrong">✗ {{sub $session.Total $session.Correct}}</span>
+    </span>
     <form method="POST" action="/decks/{{$deck.ID}}/session/end"
           onsubmit="return confirm('End this session early?')">
         <input type="hidden" name="session_id" value="{{$session.ID}}">

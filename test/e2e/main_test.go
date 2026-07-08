@@ -5,28 +5,22 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"memolang/internal/app"
 	"memolang/internal/db"
+	"memolang/test/e2e/cases"
+	"memolang/test/e2e/configuration"
+	"memolang/test/e2e/helpers"
 
 	"github.com/gin-gonic/gin"
 	playwright "github.com/playwright-community/playwright-go"
 )
 
-var (
-	baseURL string
-	pw      *playwright.Playwright
-	browser playwright.Browser
-)
-
 func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 
-	if err := os.Chdir(findRoot()); err != nil {
-		panic(err)
-	}
+	helpers.ChdirRoot()
 
 	tmpDB, err := os.CreateTemp("", "memolang-e2e-*.db")
 	if err != nil {
@@ -41,113 +35,71 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	defer database.Close()
+	configuration.DB = database
 
 	ln, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(err)
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	baseURL = fmt.Sprintf("http://localhost:%d", port)
+	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", port)
 
 	router := app.NewRouter(database)
 	go http.Serve(ln, router)
 
-	pw, err = playwright.Run()
+	pw, err := playwright.Run()
 	if err != nil {
 		panic(fmt.Sprintf("playwright.Run: %v", err))
 	}
-	browser, err = pw.Chromium.Launch()
+
+	configuration.Browser, err = pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(!configuration.IsHeaded()),
+	})
 	if err != nil {
 		panic(fmt.Sprintf("launch chromium: %v", err))
 	}
 
 	code := m.Run()
 
-	browser.Close()
+	configuration.Browser.Close()
 	pw.Stop()
 	os.Exit(code)
 }
 
-// newPage opens a fresh browser page that auto-accepts confirm() dialogs.
-func newPage(t *testing.T) playwright.Page {
-	t.Helper()
-	page, err := browser.NewPage()
-	if err != nil {
-		t.Fatal(err)
-	}
-	page.OnDialog(func(d playwright.Dialog) { d.Accept() })
-	t.Cleanup(func() { page.Close() })
-	return page
-}
-
-// createDeck navigates to the new-deck form, fills it, submits, and returns
-// the deck detail URL (e.g. http://localhost:PORT/decks/3).
-func createDeck(t *testing.T, page playwright.Page, name string) string {
-	t.Helper()
-	if _, err := page.Goto(baseURL + "/decks/new"); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.Locator("input[name=name]").Fill(name); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.Locator("button[type=submit]").Click(); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.WaitForURL("**/decks/**"); err != nil {
-		t.Fatal(err)
-	}
-	return page.URL()
-}
-
-// deleteDeck navigates to the deck page and clicks the deck-level Delete button.
-// Uses a scoped selector so it doesn't match per-card delete buttons.
-func deleteDeck(t *testing.T, page playwright.Page, deckURL string) {
-	t.Helper()
-	if _, err := page.Goto(deckURL); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.Locator(".page-header button:has-text('Delete')").Click(); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.WaitForURL(baseURL + "/"); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// importCards uploads a CSV file and executes the two-step import flow.
-func importCards(t *testing.T, page playwright.Page, deckURL, csvPath string) {
-	t.Helper()
-	if _, err := page.Goto(deckURL + "/import"); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.Locator("input[name=csv]").SetInputFiles(csvPath); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.Locator("button:has-text('Preview')").Click(); err != nil {
-		t.Fatal(err)
-	}
-	// Wait for the execute form to appear
-	if err := page.Locator("button:has-text('Import')").WaitFor(); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.Locator("button:has-text('Import')").Click(); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.WaitForURL(deckURL); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func findRoot() string {
-	dir, _ := os.Getwd()
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			panic("go.mod not found")
-		}
-		dir = parent
-	}
+// TestE2E is the single suite entry point. Every exported func in the cases
+// package must be registered here — unregistered cases silently never run.
+// Filter with: go test ./test/e2e -run 'TestE2E/Settings'
+func TestE2E(t *testing.T) {
+	t.Run("Deck", func(t *testing.T) {
+		t.Run("CreateDeck", cases.CreateDeck)
+		t.Run("CreateDeckNameRequired", cases.CreateDeckNameRequired)
+		t.Run("DeleteDeck", cases.DeleteDeck)
+		t.Run("DeckCardClickable", cases.DeckCardClickable)
+		t.Run("StudyDropdownOffersBothModes", cases.StudyDropdownOffersBothModes)
+		t.Run("DashboardLayout", cases.DashboardLayout)
+		t.Run("EditDeck", cases.EditDeck)
+	})
+	t.Run("Import", func(t *testing.T) {
+		t.Run("CSVImportPreviewThenExecute", cases.CSVImportPreviewThenExecute)
+		t.Run("CSVImportEmptyFileError", cases.CSVImportEmptyFileError)
+		t.Run("CSVImportTokenBelongsToDeck", cases.CSVImportTokenBelongsToDeck)
+	})
+	t.Run("Session", func(t *testing.T) {
+		t.Run("FlashcardReveal", cases.FlashcardReveal)
+		t.Run("FlashcardRatingAdvances", cases.FlashcardRatingAdvances)
+		t.Run("MultipleChoiceFeedbackCorrect", cases.MultipleChoiceFeedbackCorrect)
+		t.Run("MultipleChoiceFeedbackWrong", cases.MultipleChoiceFeedbackWrong)
+		t.Run("RunningScore", cases.RunningScore)
+		t.Run("LastCardFeedback", cases.LastCardFeedback)
+		t.Run("SummaryMissedCards", cases.SummaryMissedCards)
+		t.Run("FlashcardModeRegression", cases.FlashcardModeRegression)
+		t.Run("EndSessionEarly", cases.EndSessionEarly)
+	})
+	t.Run("Settings", func(t *testing.T) {
+		t.Run("SettingsNavLink", cases.SettingsNavLink)
+		t.Run("SaveSettings", cases.SaveSettings)
+		t.Run("ReSaveKeepsAPIKey", cases.ReSaveKeepsAPIKey)
+		t.Run("AIFormWithoutConfig", cases.AIFormWithoutConfig)
+		t.Run("SettingsValidation", cases.SettingsValidation)
+	})
 }

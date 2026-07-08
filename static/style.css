@@ -261,6 +261,18 @@ input:focus, textarea:focus, select:focus {
 .mc-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1.5rem; }
 .mc-option { width: 100%; min-height: 50px; }
 
+/* ── Feedback ── */
+.feedback-banner { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; }
+.feedback-correct .feedback-banner { color: var(--success); }
+.feedback-wrong .feedback-banner { color: var(--danger); }
+.feedback-given { color: var(--danger); margin-bottom: 0.5rem; }
+.feedback-answer { color: var(--success); margin-bottom: 0.5rem; }
+
+/* ── Session score ── */
+.session-score { display: inline-flex; gap: 0.5rem; font-size: 0.95rem; }
+.score-right { color: var(--success); }
+.score-wrong { color: var(--danger); }
+
 /* ── Empty state ── */
 .empty-state {
     text-align: center;

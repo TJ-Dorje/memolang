@@ -21,10 +21,26 @@
         <div class="label">Accuracy</div>
     </div>
     <div class="stat">
+        <div class="value">{{.Data.Wrong}}</div>
+        <div class="label">Wrong</div>
+    </div>
+    <div class="stat">
         <div class="value">{{.Data.DueTomorrow}}</div>
         <div class="label">Due Tomorrow</div>
     </div>
 </div>
+
+{{if .Data.MissedCards}}
+<h2>Missed cards</h2>
+<table class="card-table">
+    <tr><th>Front</th><th>Correct answer</th><th>Your answer</th></tr>
+    {{range .Data.MissedCards}}
+    <tr><td>{{.CardFront}}</td><td>{{.CardBack}}</td><td>{{.Given}}</td></tr>
+    {{end}}
+</table>
+{{else if gt $session.Total 0}}
+<p style="text-align: center; color: var(--success); margin-top: 1rem;">Perfect session! 🎉</p>
+{{end}}
 
 <div class="btn-group" style="justify-content: center; margin-top: 2rem;">
     <a href="/decks/{{$deck.ID}}/session" class="btn btn-primary">Study Again</a>

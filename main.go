@@ -2,13 +2,19 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"memolang/internal/app"
 	"memolang/internal/db"
 )
 
 func main() {
-	database, err := db.Open("memolang.db")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "memolang.db"
+	}
+
+	database, err := db.Open(dbPath)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
 	}
