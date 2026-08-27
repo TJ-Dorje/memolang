@@ -35,7 +35,7 @@ func newAnthropic(cfg Config) *anthropic {
 type anthropicRequest struct {
 	Model     string            `json:"model"`
 	MaxTokens int               `json:"max_tokens"`
-	System    string            `json:"system"`
+	System    string            `json:"system,omitempty"`
 	Messages  []anthropicMessage `json:"messages"`
 }
 

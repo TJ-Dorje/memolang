@@ -49,17 +49,19 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	}
 
 	if !validProviders[provider] {
+		savedKey, _ := models.GetSetting(h.DB, "llm.api_key")
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
-			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: apiKey != "", Error: "Invalid provider. Must be one of: ollama, openai, anthropic, custom."},
+			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: savedKey != "", Error: "Invalid provider. Must be one of: ollama, openai, anthropic, custom."},
 		})
 		return
 	}
 
 	if strings.TrimSpace(baseURL) == "" || strings.TrimSpace(model) == "" {
+		savedKey, _ := models.GetSetting(h.DB, "llm.api_key")
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
-			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: apiKey != "", Error: "Base URL and Model are required."},
+			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: savedKey != "", Error: "Base URL and Model are required."},
 		})
 		return
 	}

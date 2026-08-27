@@ -38,7 +38,7 @@
     <tr><td>{{.CardFront}}</td><td>{{.CardBack}}</td><td>{{.Given}}</td></tr>
     {{end}}
 </table>
-{{else if gt $session.Total 0}}
+{{else if and (eq .Data.Wrong 0) (gt $session.Total 0)}}
 <p style="text-align: center; color: var(--success); margin-top: 1rem;">Perfect session! 🎉</p>
 {{end}}
 
