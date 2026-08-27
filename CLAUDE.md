@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MemoLang is a language-learning flashcard web app (Anki-style). Users import word/verb/phrase packs via CSV and study them through flashcard or multiple-choice sessions. Two scheduling modes per deck: **SRS** (SM-2 spaced repetition) and **Linear** (sequential, unlearned cards first).
 
-Full engineering plan and task backlog are in `PLAN.md`. Chronological journal of key tech decisions and solutions is in `JOURNAL.md`. Chronological journal of key tech decisions and solutions is in `JOURNAL.md`.
+Full engineering plan and task backlog are in `docs/plans/PLAN.md` (follow-on work in `docs/plans/REFINEMENT_PLAN.md`). Chronological journal of key tech decisions and solutions is in `JOURNAL.md`.
 
 ## Tooling
 
