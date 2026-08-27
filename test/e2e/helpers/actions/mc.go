@@ -57,7 +57,7 @@ func AnswerMC(t *testing.T, page playwright.Page, answers map[string]string, cor
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		text, err := options.Nth(i).TextContent()
 		if err != nil {
 			t.Fatal(err)

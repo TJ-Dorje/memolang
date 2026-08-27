@@ -34,7 +34,7 @@ func CreateCard(db *sql.DB, deckID int64, front, back, example, tags string) (Ca
 
 func GetCardsByDeck(db *sql.DB, deckID int64, filter, search string) ([]Card, error) {
 	base := `SELECT id, deck_id, front, back, example, tags, interval, ease, repetitions, due_date, created_at FROM cards WHERE deck_id = ?`
-	args := []interface{}{deckID}
+	args := []any{deckID}
 
 	switch filter {
 	case "due":

@@ -33,7 +33,7 @@ func TestSM2AgainResetsInterval(t *testing.T) {
 
 func TestSM2EaseFloor(t *testing.T) {
 	s := CardState{Interval: 1, Ease: 1.3, Repetitions: 0}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		s, _ = Update(s, 0) // Again, again, again...
 	}
 	if s.Ease < 1.3 {

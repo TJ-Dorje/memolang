@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 	}
 
 	configuration.Browser, err = pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		Headless: playwright.Bool(!configuration.IsHeaded()),
+		Headless: new(!configuration.IsHeaded()),
 	})
 	if err != nil {
 		panic(fmt.Sprintf("launch chromium: %v", err))

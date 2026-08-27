@@ -14,20 +14,20 @@ import (
 type PageData struct {
 	Title string
 	Flash string
-	Data  interface{}
+	Data  any
 }
 
 type Handler struct {
-	DB         *sql.DB
-	pending    sync.Map
-	token      string
+	DB      *sql.DB
+	pending sync.Map
+	token   string
 }
 
 func New(db *sql.DB) *Handler {
 	return &Handler{DB: db}
 }
 
-func (h *Handler) storePending(data interface{}) string {
+func (h *Handler) storePending(data any) string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	token := hex.EncodeToString(b)
@@ -35,7 +35,7 @@ func (h *Handler) storePending(data interface{}) string {
 	return token
 }
 
-func (h *Handler) loadPending(token string) (interface{}, bool) {
+func (h *Handler) loadPending(token string) (any, bool) {
 	v, ok := h.pending.LoadAndDelete(token)
 	return v, ok
 }
