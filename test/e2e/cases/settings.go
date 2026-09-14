@@ -114,3 +114,61 @@ func SettingsValidation(t *testing.T) {
 		t.Errorf("expected 'required' in error message, got %q", errMsg)
 	}
 }
+
+// ClearAPIKeyRemovesIt is the counterpart to ReSaveKeepsAPIKey: the keep path
+// was covered, the clear path was not, which is why a dropped error on the
+// delete went unnoticed.
+func ClearAPIKeyRemovesIt(t *testing.T) {
+	page := components.NewPage(t)
+	actions.ResetLLMSettings(t)
+
+	actions.SaveSettings(t, page, "custom", "http://localhost:1234/v1", "test-model", "sk-to-be-cleared")
+
+	placeholder := components.GetPlaceholder(t, page, "input[name=api_key]")
+	if !strings.Contains(placeholder, "saved") {
+		t.Fatalf("setup: expected a saved key, placeholder %q", placeholder)
+	}
+
+	actions.TickClearAPIKey(t, page)
+	actions.SubmitSettings(t, page)
+
+	flash := components.GetFlash(t, page)
+	if !strings.Contains(flash, "saved") {
+		t.Errorf("expected a success flash, got %q", flash)
+	}
+
+	placeholder = components.GetPlaceholder(t, page, "input[name=api_key]")
+	if strings.Contains(placeholder, "saved") {
+		t.Errorf("key still stored after clearing; placeholder %q", placeholder)
+	}
+	if n := components.CountLocators(t, page, "input[name=clear_api_key]"); n != 0 {
+		t.Errorf("clear checkbox still rendered with no key stored (%d)", n)
+	}
+}
+
+// ClearAndNewKeyIsRejected: asking to clear and supplying a new key at once is
+// contradictory. It used to write the new key and then delete it, discarding
+// what the user typed without saying anything.
+func ClearAndNewKeyIsRejected(t *testing.T) {
+	page := components.NewPage(t)
+	actions.ResetLLMSettings(t)
+
+	actions.SaveSettings(t, page, "custom", "http://localhost:1234/v1", "test-model", "sk-original")
+
+	actions.TickClearAPIKey(t, page)
+	if err := components.FillInput(page, "input[name=api_key]", "sk-replacement"); err != nil {
+		t.Fatal(err)
+	}
+	actions.SubmitSettings(t, page)
+
+	formErr := components.GetFormError(t, page)
+	if !strings.Contains(formErr, "not both") {
+		t.Errorf("expected a not-both error, got %q", formErr)
+	}
+
+	// The original key must survive a rejected submission untouched.
+	placeholder := components.GetPlaceholder(t, page, "input[name=api_key]")
+	if !strings.Contains(placeholder, "saved") {
+		t.Errorf("rejected submission lost the stored key; placeholder %q", placeholder)
+	}
+}

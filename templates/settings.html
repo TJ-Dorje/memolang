@@ -30,6 +30,11 @@
         <label for="api_key">API Key</label>
         <input type="password" id="api_key" name="api_key"
             placeholder="{{if .Data.HasAPIKey}}•••••••• (saved — leave blank to keep){{else}}API key (optional for local){{end}}">
+        {{if .Data.EnvKey}}
+        <small class="hint">LLM_API_KEY is set and takes precedence — any key stored here is ignored while it is.</small>
+        {{else}}
+        <small class="hint">Stored in plain text in the database. Set <code>LLM_API_KEY</code> instead to keep a real key out of it.</small>
+        {{end}}
         {{if .Data.HasAPIKey}}
         <label class="checkbox-label">
             <input type="checkbox" name="clear_api_key" value="1"> Clear saved key

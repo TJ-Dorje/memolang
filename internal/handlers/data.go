@@ -70,7 +70,10 @@ type SettingsData struct {
 	BaseURL   string
 	Model     string
 	HasAPIKey bool
-	Error     string
+	// EnvKey reports that LLM_API_KEY is set and therefore overrides whatever
+	// is stored, so the form can say so instead of looking out of date.
+	EnvKey bool
+	Error  string
 }
 
 // SessionSummaryData is the data payload for the session summary page.

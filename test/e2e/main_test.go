@@ -122,6 +122,8 @@ func TestE2E(t *testing.T) {
 		t.Run("SettingsNavLink", cases.SettingsNavLink)
 		t.Run("SaveSettings", cases.SaveSettings)
 		t.Run("ReSaveKeepsAPIKey", cases.ReSaveKeepsAPIKey)
+		t.Run("ClearAPIKeyRemovesIt", cases.ClearAPIKeyRemovesIt)
+		t.Run("ClearAndNewKeyIsRejected", cases.ClearAndNewKeyIsRejected)
 		t.Run("AIFormWithoutConfig", cases.AIFormWithoutConfig)
 		t.Run("SettingsValidation", cases.SettingsValidation)
 	})

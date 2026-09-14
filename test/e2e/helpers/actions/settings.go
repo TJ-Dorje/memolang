@@ -89,3 +89,24 @@ func SubmitAIForm(t *testing.T, page playwright.Page, name, language, prompt str
 		t.Fatal(err)
 	}
 }
+
+// TickClearAPIKey checks the "Clear saved key" box. It is only rendered when a
+// key is actually stored, so this doubles as an assertion that one is.
+func TickClearAPIKey(t *testing.T, page playwright.Page) {
+	t.Helper()
+	if err := page.Locator("input[name=clear_api_key]").Check(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// SubmitSettings submits the settings form as it currently stands, without
+// touching any field — for cases that set up state by other means first.
+func SubmitSettings(t *testing.T, page playwright.Page) {
+	t.Helper()
+	if err := components.ClickButton(page, "button:has-text('Save')"); err != nil {
+		t.Fatal(err)
+	}
+	if err := page.WaitForURL("**/settings"); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 
 	"memolang/internal/models"
 )
@@ -38,17 +39,36 @@ type Provider interface {
 // ErrNotConfigured is returned by New when no provider is set.
 var ErrNotConfigured = errors.New("llm provider not configured")
 
-// LoadConfig reads one user's llm.* keys via models.GetSettings.
+// APIKeyEnvVar overrides the stored key when set. It exists so a key with real
+// billing attached never has to be written to the settings table, which holds
+// values in plaintext.
+const APIKeyEnvVar = "LLM_API_KEY"
+
+// APIKeyFromEnv returns the override, or "" when unset. Callers use it to tell
+// the user which key is actually in effect.
+func APIKeyFromEnv() string {
+	return os.Getenv(APIKeyEnvVar)
+}
+
+// LoadConfig reads one user's llm.* keys via models.GetSettings, with
+// LLM_API_KEY taking precedence over the stored key. The override is process
+// wide and deliberately not per-user: it is a single-operator escape hatch for
+// keeping a key out of the database, not a way to configure accounts.
 func LoadConfig(db *sql.DB, userID int64) (Config, error) {
 	settings, err := models.GetSettings(db, userID, "llm.")
 	if err != nil {
 		return Config{}, err
 	}
 
+	apiKey := settings["llm.api_key"]
+	if env := APIKeyFromEnv(); env != "" {
+		apiKey = env
+	}
+
 	return Config{
 		Provider: settings["llm.provider"],
 		BaseURL:  settings["llm.base_url"],
-		APIKey:   settings["llm.api_key"],
+		APIKey:   apiKey,
 		Model:    settings["llm.model"],
 	}, nil
 }
