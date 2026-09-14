@@ -12,7 +12,9 @@ import (
 )
 
 func (h *Handler) SettingsPage(c *gin.Context) {
-	cfg, err := ai.LoadConfig(h.DB)
+	userID := currentUserID(c)
+
+	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
@@ -35,6 +37,8 @@ func (h *Handler) SettingsPage(c *gin.Context) {
 }
 
 func (h *Handler) SaveSettings(c *gin.Context) {
+	userID := currentUserID(c)
+
 	provider := c.PostForm("provider")
 	baseURL := c.PostForm("base_url")
 	apiKey := c.PostForm("api_key")
@@ -49,7 +53,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	}
 
 	if !validProviders[provider] {
-		savedKey, _ := models.GetSetting(h.DB, "llm.api_key")
+		savedKey, _ := models.GetSetting(h.DB, userID, "llm.api_key")
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
 			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: savedKey != "", Error: "Invalid provider. Must be one of: ollama, openai, anthropic, custom."},
@@ -58,7 +62,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	}
 
 	if strings.TrimSpace(baseURL) == "" || strings.TrimSpace(model) == "" {
-		savedKey, _ := models.GetSetting(h.DB, "llm.api_key")
+		savedKey, _ := models.GetSetting(h.DB, userID, "llm.api_key")
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
 			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: savedKey != "", Error: "Base URL and Model are required."},
@@ -66,7 +70,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 		return
 	}
 
-	if err := models.SetSetting(h.DB, "llm.provider", provider); err != nil {
+	if err := models.SetSetting(h.DB, userID, "llm.provider", provider); err != nil {
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
 			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: apiKey != "", Error: "Failed to save provider: " + err.Error()},
@@ -74,7 +78,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 		return
 	}
 
-	if err := models.SetSetting(h.DB, "llm.base_url", baseURL); err != nil {
+	if err := models.SetSetting(h.DB, userID, "llm.base_url", baseURL); err != nil {
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
 			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: apiKey != "", Error: "Failed to save base URL: " + err.Error()},
@@ -82,7 +86,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 		return
 	}
 
-	if err := models.SetSetting(h.DB, "llm.model", model); err != nil {
+	if err := models.SetSetting(h.DB, userID, "llm.model", model); err != nil {
 		h.render(c, http.StatusOK, "settings.html", PageData{
 			Title: "Settings",
 			Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: apiKey != "", Error: "Failed to save model: " + err.Error()},
@@ -91,7 +95,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	}
 
 	if apiKey != "" {
-		if err := models.SetSetting(h.DB, "llm.api_key", apiKey); err != nil {
+		if err := models.SetSetting(h.DB, userID, "llm.api_key", apiKey); err != nil {
 			h.render(c, http.StatusOK, "settings.html", PageData{
 				Title: "Settings",
 				Data:  SettingsData{Provider: provider, BaseURL: baseURL, Model: model, HasAPIKey: true, Error: "Failed to save API key: " + err.Error()},
@@ -101,14 +105,16 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	}
 
 	if clearKey == "1" {
-		models.DeleteSetting(h.DB, "llm.api_key")
+		models.DeleteSetting(h.DB, userID, "llm.api_key")
 	}
 
 	h.redirectWithFlash(c, "/settings", "Settings saved.")
 }
 
 func (h *Handler) TestLLMConnection(c *gin.Context) {
-	cfg, err := ai.LoadConfig(h.DB)
+	userID := currentUserID(c)
+
+	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
 		h.redirectWithFlash(c, "/settings", "Connection failed: "+err.Error())
 		return

@@ -11,7 +11,19 @@
     <header>
         <nav>
             <a href="/" class="logo">MemoLang</a>
+            {{if .User}}
             <a href="/settings">Settings</a>
+            <span class="nav-user">{{.User.Email}}</span>
+            <form method="POST" action="/logout" class="nav-logout">
+                {{/* No type="submit": submit is the in-form default, and leaving
+                     the attribute off keeps page-wide button[type=submit]
+                     selectors pointing at the page's own form. */}}
+                <button class="btn">Log Out</button>
+            </form>
+            {{else}}
+            <a href="/login">Log In</a>
+            <a href="/register">Register</a>
+            {{end}}
         </nav>
     </header>
 

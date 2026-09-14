@@ -10,13 +10,15 @@ import (
 )
 
 func (h *Handler) EditCardForm(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid card ID")
 		return
 	}
 
-	card, err := models.GetCardByID(h.DB, id)
+	card, err := models.GetCardByID(h.DB, userID, id)
 	if err != nil {
 		c.String(http.StatusNotFound, "Card not found")
 		return
@@ -30,13 +32,15 @@ func (h *Handler) EditCardForm(c *gin.Context) {
 }
 
 func (h *Handler) UpdateCard(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid card ID")
 		return
 	}
 
-	card, err := models.GetCardByID(h.DB, id)
+	card, err := models.GetCardByID(h.DB, userID, id)
 	if err != nil {
 		c.String(http.StatusNotFound, "Card not found")
 		return
@@ -64,13 +68,15 @@ func (h *Handler) UpdateCard(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCard(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid card ID")
 		return
 	}
 
-	card, err := models.GetCardByID(h.DB, id)
+	card, err := models.GetCardByID(h.DB, userID, id)
 	if err != nil {
 		c.String(http.StatusNotFound, "Card not found")
 		return

@@ -54,9 +54,11 @@ main.go (route registration)
 
 **All mutations are POST + redirect.** HTML forms only support GET/POST, so every write operation (create, update, delete, submit answer) is a `POST` that redirects on success. Flash messages are passed via a short-lived cookie (`Max-Age: 5`) set before redirect and read+cleared on the next GET.
 
+**Auth: password login, DB-backed sessions, private decks.** Everything except `/login`, `/register`, `/logout` and `/static` sits behind `middleware.RequireAuth`, which resolves the `session` cookie to a user and puts it in the gin context (`currentUserID(c)` reads it back). Decks are owned; `GetDeckByID`/`GetCardByID` scope by owner so another user's id is a 404, never a 403 (no existence leak). Handlers that take an id from the request body (`SubmitAnswer`, `EndSessionEarly`) bind it back to an owned deck via `GetSessionByID` before writing. Cookies are httpOnly + `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); set `SECURE_COOKIES=1` when serving over TLS.
+
 **Session state lives in the DB.** The active study session (card queue as JSON, current position, score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active.
 
-**Templates use a shared layout.** `layout.html` wraps every page via Go template `define`/`template` blocks. Every handler passes a `PageData{Title, Flash, Data}` struct. `Data` holds the page-specific payload.
+**Templates use a shared layout.** `layout.html` wraps every page via Go template `define`/`template` blocks. Every handler passes a `PageData{Title, Flash, User, Data}` struct (`h.render` fills in `User` from the gin context for the nav). `Data` holds the page-specific payload.
 
 ### Stack
 
@@ -94,13 +96,19 @@ func Update(s CardState, rating int) (CardState, time.Time)
 
 After calling `Update`, persist the result with `models.UpdateCardSRS(...)`.
 
-### Database schema (3 tables)
+### Database schema (7 tables)
 
-- `decks` — name, mode (`srs`|`linear`)
+- `users` — email (UNIQUE, `COLLATE NOCASE`), password_hash (bcrypt; empty is reserved for future OAuth-only accounts)
+- `user_sessions` — login sessions: token (PK), user_id, expires_at
+- `decks` — user_id (owner), name, mode (`srs`|`linear`)
 - `cards` — front, back, example, tags, SM-2 fields (interval, ease, repetitions, due_date)
 - `study_sessions` — card_queue (JSON int array), position, correct/total counters, ended_at
+- `session_answers` — per-answer record backing the feedback and summary screens
+- `settings` — per-user key/value store (composite PK `(user_id, key)`), currently `llm.*` keys only
 
 Foreign keys with `ON DELETE CASCADE` are enforced via `PRAGMA foreign_keys = ON` set at connection time.
+
+`schema.sql` is `CREATE TABLE IF NOT EXISTS` only, so it cannot alter an existing table. `db.Open` refuses to start against a database predating `decks.user_id` and tells you to run `task db:reset`.
 
 ### CSV import flow
 

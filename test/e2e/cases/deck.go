@@ -28,7 +28,7 @@ func CreateDeckNameRequired(t *testing.T) {
 	page := components.NewPage(t)
 
 	components.NavigateTo(t, page, "/decks/new")
-	if _, err := page.Evaluate("document.querySelector('form').noValidate = true"); err != nil {
+	if _, err := page.Evaluate("document.querySelector('main form').noValidate = true"); err != nil {
 		t.Fatal(err)
 	}
 	if err := components.ClickButton(page, "button[type=submit]"); err != nil {

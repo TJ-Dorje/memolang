@@ -82,3 +82,10 @@ type SessionSummaryData struct {
 	Wrong       int
 	MissedCards []models.SessionAnswer
 }
+
+// AuthFormData is the data payload for the login and register forms.
+type AuthFormData struct {
+	Email string
+	Next  string
+	Error string
+}

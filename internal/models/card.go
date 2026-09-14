@@ -74,11 +74,16 @@ func GetCardsByDeck(db *sql.DB, deckID int64, filter, search string) ([]Card, er
 	return cards, rows.Err()
 }
 
-func GetCardByID(db *sql.DB, id int64) (Card, error) {
+// GetCardByID is the one card-level entry point reached by a raw ID from a
+// URL, so it joins through to decks and scopes by owner: a card in someone
+// else's deck comes back as sql.ErrNoRows, exactly like a missing one.
+func GetCardByID(db *sql.DB, userID, id int64) (Card, error) {
 	var c Card
 	err := db.QueryRow(
-		`SELECT id, deck_id, front, back, example, tags, interval, ease, repetitions, due_date, created_at
-		 FROM cards WHERE id = ?`, id,
+		`SELECT c.id, c.deck_id, c.front, c.back, c.example, c.tags, c.interval, c.ease, c.repetitions, c.due_date, c.created_at
+		 FROM cards c
+		 JOIN decks d ON d.id = c.deck_id
+		 WHERE c.id = ? AND d.user_id = ?`, id, userID,
 	).Scan(&c.ID, &c.DeckID, &c.Front, &c.Back, &c.Example, &c.Tags,
 		&c.Interval, &c.Ease, &c.Repetitions, &c.DueDate, &c.CreatedAt)
 	return c, err

@@ -59,8 +59,14 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("launch chromium: %v", err))
 	}
 
+	configuration.Context, err = helpers.NewLoggedInContext()
+	if err != nil {
+		panic(fmt.Sprintf("logged-in context: %v", err))
+	}
+
 	code := m.Run()
 
+	configuration.Context.Close()
 	configuration.Browser.Close()
 	pw.Stop()
 	os.Exit(code)
@@ -94,6 +100,14 @@ func TestE2E(t *testing.T) {
 		t.Run("SummaryMissedCards", cases.SummaryMissedCards)
 		t.Run("FlashcardModeRegression", cases.FlashcardModeRegression)
 		t.Run("EndSessionEarly", cases.EndSessionEarly)
+	})
+	t.Run("Auth", func(t *testing.T) {
+		t.Run("Register", cases.Register)
+		t.Run("Logout", cases.Logout)
+		t.Run("LoginWrongPassword", cases.LoginWrongPassword)
+		t.Run("LoginEmailCaseInsensitive", cases.LoginEmailCaseInsensitive)
+		t.Run("ProtectedRouteWithoutSession", cases.ProtectedRouteWithoutSession)
+		t.Run("DecksArePrivatePerUser", cases.DecksArePrivatePerUser)
 	})
 	t.Run("Settings", func(t *testing.T) {
 		t.Run("SettingsNavLink", cases.SettingsNavLink)

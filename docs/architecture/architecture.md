@@ -1,10 +1,10 @@
-# MemoLang — Architecture (as of 2026-08-27)
+# MemoLang — Architecture (as of 2026-09-15)
 
-Snapshot of the current system. This describes what exists today, not what's planned — see `docs/plans/` for upcoming work (e.g. `auth-sessions-plan.md`).
+Snapshot of the current system. This describes what exists today, not what's planned — see `docs/plans/` for upcoming work.
 
 ## Overview
 
-MemoLang is a single-tenant, server-rendered Go web app for language-learning flashcards (Anki-style). No JS framework, no ORM, no external services besides an optional LLM provider for AI-generated decks.
+MemoLang is a multi-user, server-rendered Go web app for language-learning flashcards (Anki-style). No JS framework, no ORM, no external services besides an optional LLM provider for AI-generated decks.
 
 ## Request path
 
@@ -29,12 +29,17 @@ main.go (entrypoint: opens DB, builds router, listens :8080)
 | DB access   | database/sql (stdlib), no ORM        |
 | CSS         | hand-written (`static/style.css`)    |
 | JS          | ~15 lines (`static/card.js`, card-flip animation only) |
-| E2E testing | Playwright (Go bindings), boots the real server against a temp SQLite file |
+| E2E testing | Playwright (Go bindings), boots the real server against a temp SQLite file; cases share one logged-in browser context |
 
 ## Data model (current tables)
 
 ```
-decks            — id, name, mode ('srs' | 'linear'), created_at
+users            — id, email (UNIQUE COLLATE NOCASE), password_hash (bcrypt;
+                    '' reserved for future OAuth-only accounts), created_at
+user_sessions    — token (PK, 32 random bytes hex), user_id → users,
+                    created_at, expires_at   (login sessions; distinct from
+                    study_sessions below)
+decks            — id, user_id → users (owner), name, mode ('srs' | 'linear'), created_at
 cards            — id, deck_id → decks, front, back, example, tags,
                     SM-2 fields (interval, ease, repetitions, due_date), created_at
 study_sessions   — id, deck_id → decks, quiz_mode ('flashcard' | 'mc'),
@@ -43,11 +48,12 @@ study_sessions   — id, deck_id → decks, quiz_mode ('flashcard' | 'mc'),
 session_answers  — id, session_id → study_sessions, card_id → cards,
                     correct, given, answered_at   (per-answer record for
                     feedback screens + summary breakdown)
-settings         — key, value, updated_at   (global key/value store;
-                    currently holds only llm.* keys)
+settings         — user_id → users, key, value, updated_at
+                    (PK (user_id, key); per-user store, currently only llm.*
+                    keys — API keys are personal data)
 ```
 
-No `users` table yet — everything is global/single-tenant. Foreign keys use `ON DELETE CASCADE`, enforced via `PRAGMA foreign_keys = ON` set at connection time (`internal/db/db.go`). Schema is a single `schema.sql` file executed with `CREATE TABLE IF NOT EXISTS` on every startup — idempotent for new tables, but there's no migration tooling for altering existing tables (see the auth plan's "migration gap" note for why this matters going forward).
+Every deck is owned by a user; cards, study sessions and answers inherit that ownership through `deck_id`, so `decks.user_id` is the only owner column. Foreign keys use `ON DELETE CASCADE`, enforced via `PRAGMA foreign_keys = ON` set at connection time (`internal/db/db.go`). Schema is a single `schema.sql` file executed with `CREATE TABLE IF NOT EXISTS` on every startup — idempotent for new tables, but there's no migration tooling for altering existing tables. `db.Open` therefore checks `PRAGMA table_info(decks)` for `user_id` before applying the schema and refuses to start on a pre-auth database, pointing at `task db:reset`.
 
 ## Key design decisions
 
@@ -55,7 +61,9 @@ No `users` table yet — everything is global/single-tenant. Foreign keys use `O
 
 **All mutations are POST + redirect.** HTML forms only support GET/POST, so every write is a `POST` that redirects on success (PRG pattern). Flash messages ride a short-lived cookie (`Max-Age: 5`), set before redirect, read + cleared on the next GET (`Handler.redirectWithFlash` / `Handler.getFlash` in `internal/handlers/handlers.go`).
 
-**Session state lives in the DB.** The active study session (card queue as JSON, position, running score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active. (Note: "session" here means *study* session, not a login session — there is no login session concept yet.)
+**Session state lives in the DB.** The active study session (card queue as JSON, position, running score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active. Login sessions live in `user_sessions` and are a separate concept — hence the deliberate naming split (`models.StudySession` vs `internal/models/auth_session.go`).
+
+**Auth and per-user isolation.** `internal/middleware/auth.go` resolves the httpOnly `session` cookie to a user and stores it on the gin context; every route except `/login`, `/register`, `/logout` and `/static` is inside that group in `internal/app/app.go`. Ownership is checked once per request, at whatever entry point first reads an id from the URL or body: `GetDeckByID(db, userID, id)` and `GetCardByID(db, userID, id)` fold "not yours" into `sql.ErrNoRows`, which handlers already render as 404, so nothing leaks about whether the id exists. `SubmitAnswer` and `EndSessionEarly` take a `session_id` from the form, so they bind it to the owned deck with `GetSessionByID(db, deckID, id)` before writing. Scoped `UPDATE`/`DELETE` go through `requireRowAffected`, turning a zero-row write into `sql.ErrNoRows` rather than a false "Saved.". Passwords are bcrypt; login answers "Invalid email or password." to every failure mode. `SameSite=Lax` is the CSRF mitigation for this stage (all mutations are POST); `SECURE_COOKIES=1` turns on the Secure flag for TLS deployments.
 
 **Templates share a layout.** `templates/layout.html` defines `_header`/`_footer` blocks; every page template wraps its content between them. Every handler passes a `PageData{Title, Flash, Data}` struct to `h.render()`; `Data` holds the page-specific payload (one struct per page in `internal/handlers/data.go`).
 
@@ -75,7 +83,9 @@ Two-step POST: `?step=preview` parses the uploaded file and re-renders the form 
 
 ## Known gaps (as-is, not a todo list)
 
-- Single-tenant: no auth, no per-user data isolation (see `docs/plans/auth-sessions-plan.md`)
-- No migration tooling beyond idempotent `CREATE TABLE IF NOT EXISTS`
-- No CSRF protection (no auth session to protect yet, so lower stakes today)
+- No migration tooling beyond idempotent `CREATE TABLE IF NOT EXISTS` (startup guard only refuses to run, it cannot migrate)
+- No CSRF tokens — `SameSite=Lax` only
+- No rate limiting on login, and registration is open to anyone who can reach the server
+- No password reset or email verification; expired `user_sessions` rows are never swept
+- OAuth/WorkOS not implemented — `users` is decoupled from how an account authenticated, so it stays additive
 - In-memory caches (`pending`, `importCache`) are single-instance-only

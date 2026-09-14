@@ -1,9 +1,28 @@
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL DEFAULT '',
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+    token      TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+
 CREATE TABLE IF NOT EXISTS decks (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name       TEXT    NOT NULL,
     mode       TEXT    NOT NULL DEFAULT 'srs',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_decks_user ON decks(user_id);
 
 CREATE TABLE IF NOT EXISTS cards (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,9 +53,11 @@ CREATE TABLE IF NOT EXISTS study_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS settings (
-    key        TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    key        TEXT NOT NULL,
     value      TEXT NOT NULL,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, key)
 );
 
 CREATE TABLE IF NOT EXISTS session_answers (

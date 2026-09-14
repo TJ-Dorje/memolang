@@ -71,6 +71,28 @@ func GetActiveSession(db *sql.DB, deckID int64) (*StudySession, error) {
 	return &s, nil
 }
 
+// GetSessionByID scopes a study session to a deck the caller has already
+// proven they own. Handlers that take a session_id from the request body use
+// it to bind that id to the deck in the URL. nil, nil if there is no match.
+func GetSessionByID(db *sql.DB, deckID, id int64) (*StudySession, error) {
+	var row sessionRow
+	err := db.QueryRow(
+		`SELECT id, deck_id, quiz_mode, card_queue, position, correct, total, started_at, ended_at
+		 FROM study_sessions
+		 WHERE id = ? AND deck_id = ?`,
+		id, deckID,
+	).Scan(&row.ID, &row.DeckID, &row.QuizMode, &row.CardQueue, &row.Position,
+		&row.Correct, &row.Total, &row.StartedAt, &row.EndedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	s := toSession(row)
+	return &s, nil
+}
+
 func AdvanceSession(db *sql.DB, id int64, correct bool) error {
 	if correct {
 		_, err := db.Exec(

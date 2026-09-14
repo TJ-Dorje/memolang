@@ -5,6 +5,7 @@ import (
 	"html/template"
 
 	"memolang/internal/handlers"
+	"memolang/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,34 +21,46 @@ func NewRouter(database *sql.DB) *gin.Engine {
 
 	h := handlers.New(database)
 
-	r.GET("/", h.Dashboard)
+	// Public routes.
+	r.GET("/login", h.LoginForm)
+	r.POST("/login", h.Login)
+	r.GET("/register", h.RegisterForm)
+	r.POST("/register", h.Register)
+	r.POST("/logout", h.Logout)
 
-	r.GET("/decks/new", h.NewDeckForm)
-	r.POST("/decks/new", h.CreateDeck)
-	r.POST("/decks/new-ai", h.CreateDeckAI)
-	r.GET("/decks/new-ai/processing", h.AIProcessing)
-	r.GET("/decks/new-ai/execute", h.AIExecute)
+	// Everything else requires a session.
+	protected := r.Group("/")
+	protected.Use(middleware.RequireAuth(database))
+	{
+		protected.GET("/", h.Dashboard)
 
-	r.GET("/decks/:id", h.DeckDetail)
-	r.GET("/decks/:id/edit", h.EditDeckForm)
-	r.POST("/decks/:id/edit", h.UpdateDeck)
-	r.POST("/decks/:id/delete", h.DeleteDeck)
+		protected.GET("/decks/new", h.NewDeckForm)
+		protected.POST("/decks/new", h.CreateDeck)
+		protected.POST("/decks/new-ai", h.CreateDeckAI)
+		protected.GET("/decks/new-ai/processing", h.AIProcessing)
+		protected.GET("/decks/new-ai/execute", h.AIExecute)
 
-	r.GET("/decks/:id/import", h.ImportForm)
-	r.POST("/decks/:id/import", h.ImportSubmit)
+		protected.GET("/decks/:id", h.DeckDetail)
+		protected.GET("/decks/:id/edit", h.EditDeckForm)
+		protected.POST("/decks/:id/edit", h.UpdateDeck)
+		protected.POST("/decks/:id/delete", h.DeleteDeck)
 
-	r.GET("/decks/:id/session", h.StartSession)
-	r.POST("/decks/:id/session/answer", h.SubmitAnswer)
-	r.POST("/decks/:id/session/end", h.EndSessionEarly)
-	r.GET("/decks/:id/session/summary", h.SessionSummary)
+		protected.GET("/decks/:id/import", h.ImportForm)
+		protected.POST("/decks/:id/import", h.ImportSubmit)
 
-	r.GET("/cards/:id/edit", h.EditCardForm)
-	r.POST("/cards/:id/edit", h.UpdateCard)
-	r.POST("/cards/:id/delete", h.DeleteCard)
+		protected.GET("/decks/:id/session", h.StartSession)
+		protected.POST("/decks/:id/session/answer", h.SubmitAnswer)
+		protected.POST("/decks/:id/session/end", h.EndSessionEarly)
+		protected.GET("/decks/:id/session/summary", h.SessionSummary)
 
-	r.GET("/settings", h.SettingsPage)
-	r.POST("/settings", h.SaveSettings)
-	r.POST("/settings/test", h.TestLLMConnection)
+		protected.GET("/cards/:id/edit", h.EditCardForm)
+		protected.POST("/cards/:id/edit", h.UpdateCard)
+		protected.POST("/cards/:id/delete", h.DeleteCard)
+
+		protected.GET("/settings", h.SettingsPage)
+		protected.POST("/settings", h.SaveSettings)
+		protected.POST("/settings/test", h.TestLLMConnection)
+	}
 
 	return r
 }

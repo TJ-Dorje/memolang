@@ -82,7 +82,7 @@ func SubmitAIForm(t *testing.T, page playwright.Page, name, language, prompt str
 	if err := components.FillInput(page, "textarea[name=prompt]", prompt); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := page.Evaluate("document.querySelector('form').noValidate = true"); err != nil {
+	if _, err := page.Evaluate("document.querySelector('main form').noValidate = true"); err != nil {
 		t.Fatal(err)
 	}
 	if err := components.ClickButton(page, "button:has-text('Generate Cards')"); err != nil {

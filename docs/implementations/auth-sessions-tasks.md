@@ -18,7 +18,7 @@ T-045).
 ```sql
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    email         TEXT NOT NULL UNIQUE,
+    email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL DEFAULT '',
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -45,15 +45,24 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
   );
   ```
 
+`email` is `COLLATE NOCASE` — SQLite `UNIQUE` on `TEXT` is case-sensitive by default, which
+would let `Foo@x.com` and `foo@x.com` register as two accounts.
+
 **Migration note:** this only affects fresh DBs (`CREATE TABLE IF NOT EXISTS` is a
 no-op against an existing `decks`/`settings` table with the old shape). Run
 `task db:reset` on local/dev DBs after this lands. Do not attempt an `ALTER TABLE`
 migration path as part of this task — flagged as a known gap in the plan doc, not
 solved here.
 
-**Done when:** `task db:reset` then starting the server creates all 5 tables with
+**Startup guard (part of this task):** in `internal/db/db.go`, after applying the schema,
+check `PRAGMA table_info(decks)` for a `user_id` column and `log.Fatal("schema out of date —
+run task db:reset")` if it is absent. Without this, a stale DB starts fine and then fails with
+an opaque `no such column: user_id` on the first dashboard load.
+
+**Done when:** `task db:reset` then starting the server creates all 7 tables with
 the new shapes (`sqlite3 memolang.db '.schema users'` /
-`.schema user_sessions` / `.schema decks` / `.schema settings`).
+`.schema user_sessions` / `.schema decks` / `.schema settings`); and starting the server
+against a pre-migration DB exits with the schema-out-of-date message instead of serving.
 
 ---
 
@@ -79,9 +88,14 @@ func GetUserByID(db *sql.DB, id int64) (*User, error)         // nil, nil if not
 match whatever pattern `internal/models/deck.go`/`card.go` already use for error
 propagation, they don't wrap errors specially, so don't over-engineer this).
 
+`CreateUser` and `GetUserByEmail` both normalize with
+`strings.ToLower(strings.TrimSpace(email))` before hitting the DB, so the Go layer agrees with
+T-050's `COLLATE NOCASE`.
+
 **Done when:** `go build ./...` passes; a unit test (`internal/models/user_test.go`,
 new — first test file in this package) covers create + get-by-email + get-by-email
-on a missing user returns `(nil, nil)`.
+on a missing user returns `(nil, nil)` + registering `Foo@x.com` then looking up
+`foo@x.com` returns the same user.
 
 ---
 
@@ -96,8 +110,11 @@ func GetUserByToken(db *sql.DB, token string) (*User, error) // join user_sessio
 func DeleteUserSession(db *sql.DB, token string) error
 ```
 
-Token generation: same style as `randomToken()` in `internal/handlers/import.go`
-(`crypto/rand`, hex-encoded, 16+ bytes).
+Token generation: `crypto/rand`, hex-encoded, **32 bytes**, and **check `rand.Read`'s error**.
+The project's existing helpers — `randomToken()` (`internal/handlers/import.go:217`, 12 bytes)
+and `storePending()` (`internal/handlers/handlers.go:30`, 16 bytes) — both discard that error,
+which is tolerable for a short-lived cache key and not for a 30-day credential. Don't copy
+them verbatim.
 
 **Done when:** unit tests cover: token roundtrips to the right user; an expired
 session (`expires_at` in the past) returns `(nil, nil)` from `GetUserByToken`, not
@@ -154,7 +171,9 @@ that's T-055).
   cookie spec below), redirect to `/`.
 - `LoginForm` (GET `/login`): render `login.html`, preserving `?next=` in a hidden
   field so `Login` can redirect back after success.
-- `Login` (POST `/login`): `GetUserByEmail`, `bcrypt.CompareHashAndPassword`.
+- `Login` (POST `/login`): `GetUserByEmail`, reject an empty `PasswordHash` outright
+  (T-050 permits `''` for future OAuth-only accounts — don't rely on bcrypt happening to
+  error on it), then `bcrypt.CompareHashAndPassword`.
   Generic error on either failure: `"Invalid email or password."` — don't
   distinguish "no such user" from "wrong password". On success: create session,
   set cookie, redirect to `c.PostForm("next")` if non-empty and starts with `/`
@@ -163,9 +182,12 @@ that's T-055).
   (`Max-Age: -1`), redirect `/login`.
 
 **Cookie spec** (used by `Register`/`Login`, and cleared by `Logout`):
-name `session`, `httpOnly=true`, `secure=false` (matches the existing flash-cookie
-convention), call `c.SetSameSite(http.SameSiteLaxMode)` before `c.SetCookie` —
-this is the project's CSRF mitigation for now (see plan doc §6).
+name `session`, `httpOnly=true`, `maxAge` equal to the 30-day session TTL (omitting it gives
+a browser-session cookie that dies on browser close while the DB row lives on),
+`secure` read from an env var (`os.Getenv("SECURE_COOKIES") == "1"`, default false so local
+`task dev` over HTTP still works — the app ships as a container image, so this one must be
+settable, unlike the 5-second flash cookie), and call `c.SetSameSite(http.SameSiteLaxMode)`
+before `c.SetCookie` — that is the project's CSRF mitigation for now (see plan doc §6).
 
 **Templates:** same `_header`/`_footer` + plain POST form pattern as
 `templates/deck_form.html`. `register.html` fields: email, password, confirm
@@ -231,7 +253,10 @@ button; `task test:e2e` is expected to start failing here (that's T-059's job to
   separate 403 path needed)
 - `CreateDeck(db, userID, name, mode)` — insert `user_id`
 - `UpdateDeck(db, userID, id, name, mode)` / `DeleteDeck(db, userID, id)` — add
-  `AND user_id = ?` to the `WHERE` clause
+  `AND user_id = ?` to the `WHERE` clause, and check `RowsAffected()`: a zero-row
+  `UPDATE`/`DELETE` returns a nil error, so a foreign deck ID would otherwise flash
+  "Saved."/"Deck deleted." having changed nothing. Return `sql.ErrNoRows` on zero rows so the
+  handlers 404, matching `GetDeckByID`
 
 **Handlers:** thread `userID := currentUserID(c)` through `Dashboard`,
 `NewDeckForm`, `CreateDeck`, `CreateDeckAI`, `AIExecute`, `EditDeckForm`,
@@ -266,6 +291,46 @@ the now-scoped `GetDeckByID`, no card-level change needed beyond that).
 
 ---
 
+## T-057b: Scope the study-session handlers (body-supplied IDs)
+
+**Files:** `internal/models/session.go`, `internal/handlers/session.go`
+
+The "verify the deck once at the entry point, trust `deck_id` downstream" rule does **not**
+currently hold here — two handlers take IDs from the POST body and never check them against
+the deck in the URL:
+
+- `SubmitAnswer` (`session.go:136`) parses the deck param and discards it (`_, err :=`), then
+  passes the form's `session_id` into `models.RecordAnswer` and `models.AdvanceSession`.
+  T-057's scoped `GetCardByID` catches a foreign `card_id`, but nothing catches a foreign
+  `session_id`: user B can advance and corrupt user A's session counters using their own card.
+- `EndSessionEarly` (`session.go:201`) reads only `session_id` and calls `models.EndSession` —
+  no deck check whatsoever, though the route `/decks/:id/session/end` carries the deck ID.
+
+**Model:** add to `internal/models/session.go`
+
+```go
+func GetSessionByID(db *sql.DB, deckID, id int64) (*StudySession, error) // WHERE id = ? AND deck_id = ?; nil,nil if missing
+```
+
+**Handlers:**
+- `SubmitAnswer`: stop discarding the deck param; `models.GetDeckByID(h.DB, userID, deckID)`
+  (404 on error), then `GetSessionByID(h.DB, deckID, sessionID)` (404 on nil), then assert
+  `card.DeckID == deckID` after loading the card — that also closes the cross-deck case
+  within a single user's own account.
+- `EndSessionEarly`: same — read `getInt64(c, "id")`, scoped `GetDeckByID`, then
+  `GetSessionByID` before `models.EndSession`.
+
+`AdvanceSession`, `EndSession`, `RecordAnswer` keep their signatures: once the session is
+proven to belong to an owned deck, its ID is trusted for the rest of the request, consistent
+with the rest of the plan.
+
+**Done when:** as user B, `POST /decks/{A-deck}/session/end` with A's `session_id` and
+`POST /decks/{A-deck}/session/answer` with A's `session_id` both return 404, and A's
+`study_sessions` row (`position`, `correct`, `total`, `ended_at`) is byte-for-byte unchanged
+afterwards.
+
+---
+
 ## T-058: Scope settings (model + ai.LoadConfig + handlers)
 
 **Files:** `internal/models/settings.go`, `internal/ai/ai.go`,
@@ -273,6 +338,11 @@ the now-scoped `GetDeckByID`, no card-level change needed beyond that).
 
 **Model:** add `userID int64` as the first param to `GetSetting`, `SetSetting`,
 `GetSettings`, `DeleteSetting`; filter/insert on it (matches T-050's composite PK).
+
+**Watch the upsert:** `SetSetting` (`internal/models/settings.go:23`) uses
+`ON CONFLICT(key) DO UPDATE`. Under the composite PK that conflict target matches no index and
+SQLite fails **at runtime** — `go build` will not catch it. It must become
+`ON CONFLICT(user_id, key) DO UPDATE ...` with `user_id` added to the INSERT column list.
 
 **`ai.LoadConfig(db, userID)`** — passes through to `GetSettings(db, userID, "llm.")`.
 
@@ -282,7 +352,8 @@ the now-scoped `GetDeckByID`, no card-level change needed beyond that).
 
 **Done when:** two logged-in users each save different LLM settings; each only
 ever sees their own saved config on `/settings` and their own config is what
-`AIExecute`/`TestLLMConnection` uses.
+`AIExecute`/`TestLLMConnection` uses. Add a unit test that saves the same key twice for one
+user — this is the only way the `ON CONFLICT` change gets caught before production.
 
 ---
 
@@ -306,6 +377,7 @@ ever sees their own saved config on `/settings` and their own config is what
    - `LoginWrongPassword` → inline error, still on `/login`
    - `ProtectedRouteWithoutSession` → hitting `/` with no cookie redirects to
      `/login`
+   - `LoginEmailCaseInsensitive` → register `Foo@x.com`, log in as `foo@x.com`, succeeds
 
 **Done when:** `task test:e2e` passes (24+ existing cases still green under the
 shared logged-in context, plus the new auth cases).
@@ -316,9 +388,9 @@ shared logged-in context, plus the new auth cases).
 
 **Files:** `CLAUDE.md`, `docs/architecture/architecture.md`
 
-**What:** update `CLAUDE.md`'s schema description (currently says "3 tables";
-will be 6: decks, cards, study_sessions, session_answers, settings, users,
-user_sessions — recount). Update `docs/architecture/architecture.md`'s data-model
+**What:** update `CLAUDE.md`'s schema description. It currently says "3 tables" and is already
+stale — `schema.sql` defines 5 today (decks, cards, study_sessions, settings, session_answers)
+and will define **7** after T-050 (+ users, user_sessions). Update `docs/architecture/architecture.md`'s data-model
 section and "Known gaps" list (remove the "no auth" bullet, note the new tables).
 
 **Done when:** both docs match the shipped schema — no more, no less than what
@@ -334,12 +406,16 @@ T-050 (schema)
     → T-053 (middleware, depends on T-052's GetUserByToken)
       → T-054 (handlers, depends on T-051/T-052)
         → T-055 (wiring, depends on T-053/T-054)
-          → T-056 → T-057 (cards depend on decks being scoped first)
-          → T-058 (independent of T-056/T-057, can run in parallel with them)
-            → T-059 (needs all handler changes done first)
-              → T-060 (last, docs only)
+          → T-056 (decks)
+            → T-057 (cards)   → T-057b (study sessions)
+            → T-058 (settings)
+              → T-059 (needs all handler changes done first)
+                → T-060 (last, docs only)
 ```
 
-T-056/T-057/T-058 touch disjoint files (deck.go+card handlers vs card.go vs
-settings.go) except for the shared `currentUserID` helper from T-055 — safe to
-parallelize across two agents/sessions once T-055 lands.
+T-056 comes first and alone: T-057, T-057b and T-058 all call the scoped `GetDeckByID` it
+introduces. After that the three are largely independent, but they are **not** file-disjoint
+as previously claimed — T-058 edits the `ai.LoadConfig` call site in
+`internal/handlers/deck.go:109`, the same file T-056 rewrites, and T-057b edits
+`internal/handlers/session.go`, which T-057's card scoping also touches. Run them sequentially,
+or accept a small merge conflict if parallelizing across sessions.

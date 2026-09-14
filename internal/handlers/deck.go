@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"errors"
 
 	"memolang/internal/ai"
 	"memolang/internal/models"
@@ -13,7 +14,9 @@ import (
 )
 
 func (h *Handler) Dashboard(c *gin.Context) {
-	decks, err := models.GetAllDecks(h.DB)
+	userID := currentUserID(c)
+
+	decks, err := models.GetAllDecks(h.DB, userID)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to load decks")
 		return
@@ -93,6 +96,8 @@ func (h *Handler) AIProcessing(c *gin.Context) {
 }
 
 func (h *Handler) AIExecute(c *gin.Context) {
+	userID := currentUserID(c)
+
 	token := c.Query("token")
 	if token == "" {
 		c.Redirect(http.StatusSeeOther, "/decks/new")
@@ -106,7 +111,7 @@ func (h *Handler) AIExecute(c *gin.Context) {
 	}
 	fd := v.(AIFormData)
 
-	cfg, err := ai.LoadConfig(h.DB)
+	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
 		log.Printf("AIExecute: LoadConfig failed: %v", err)
 		fd.Error = "Failed to load LLM settings: " + err.Error()
@@ -146,7 +151,7 @@ func (h *Handler) AIExecute(c *gin.Context) {
 		return
 	}
 
-	deck, err := models.CreateDeck(h.DB, fd.Name, fd.Mode)
+	deck, err := models.CreateDeck(h.DB, userID, fd.Name, fd.Mode)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to create deck")
 		return
@@ -164,6 +169,8 @@ func (h *Handler) AIExecute(c *gin.Context) {
 }
 
 func (h *Handler) CreateDeck(c *gin.Context) {
+	userID := currentUserID(c)
+
 	name := c.PostForm("name")
 	mode := c.PostForm("mode")
 	if mode == "" {
@@ -178,7 +185,7 @@ func (h *Handler) CreateDeck(c *gin.Context) {
 		return
 	}
 
-	deck, err := models.CreateDeck(h.DB, name, mode)
+	deck, err := models.CreateDeck(h.DB, userID, name, mode)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to create deck")
 		return
@@ -188,13 +195,15 @@ func (h *Handler) CreateDeck(c *gin.Context) {
 }
 
 func (h *Handler) EditDeckForm(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	deck, err := models.GetDeckByID(h.DB, id)
+	deck, err := models.GetDeckByID(h.DB, userID, id)
 	if err != nil {
 		c.String(http.StatusNotFound, "Deck not found")
 		return
@@ -208,6 +217,8 @@ func (h *Handler) EditDeckForm(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDeck(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
@@ -218,7 +229,11 @@ func (h *Handler) UpdateDeck(c *gin.Context) {
 	mode := c.PostForm("mode")
 
 	if name == "" {
-		deck, _ := models.GetDeckByID(h.DB, id)
+		deck, err := models.GetDeckByID(h.DB, userID, id)
+		if err != nil {
+			c.String(http.StatusNotFound, "Deck not found")
+			return
+		}
 		h.render(c, http.StatusOK, "deck_form.html", PageData{
 			Title: "Edit Deck",
 			Data:  DeckFormData{Error: "Name is required", Deck: &deck},
@@ -226,7 +241,11 @@ func (h *Handler) UpdateDeck(c *gin.Context) {
 		return
 	}
 
-	if err := models.UpdateDeck(h.DB, id, name, mode); err != nil {
+	if err := models.UpdateDeck(h.DB, userID, id, name, mode); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.String(http.StatusNotFound, "Deck not found")
+			return
+		}
 		c.String(http.StatusInternalServerError, "Failed to update deck")
 		return
 	}
@@ -235,13 +254,19 @@ func (h *Handler) UpdateDeck(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDeck(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	if err := models.DeleteDeck(h.DB, id); err != nil {
+	if err := models.DeleteDeck(h.DB, userID, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.String(http.StatusNotFound, "Deck not found")
+			return
+		}
 		c.String(http.StatusInternalServerError, "Failed to delete deck")
 		return
 	}
@@ -250,13 +275,15 @@ func (h *Handler) DeleteDeck(c *gin.Context) {
 }
 
 func (h *Handler) DeckDetail(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	deck, err := models.GetDeckByID(h.DB, id)
+	deck, err := models.GetDeckByID(h.DB, userID, id)
 	if err != nil {
 		c.String(http.StatusNotFound, "Deck not found")
 		return

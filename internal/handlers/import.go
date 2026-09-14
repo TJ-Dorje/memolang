@@ -27,13 +27,15 @@ type cachedImport struct {
 }
 
 func (h *Handler) ImportForm(c *gin.Context) {
+	userID := currentUserID(c)
+
 	id, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	deck, err := models.GetDeckByID(h.DB, id)
+	deck, err := models.GetDeckByID(h.DB, userID, id)
 	if err != nil {
 		c.String(http.StatusNotFound, "Deck not found")
 		return
@@ -47,13 +49,15 @@ func (h *Handler) ImportForm(c *gin.Context) {
 }
 
 func (h *Handler) ImportSubmit(c *gin.Context) {
+	userID := currentUserID(c)
+
 	deckID, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	deck, err := models.GetDeckByID(h.DB, deckID)
+	deck, err := models.GetDeckByID(h.DB, userID, deckID)
 	if err != nil {
 		c.String(http.StatusNotFound, "Deck not found")
 		return

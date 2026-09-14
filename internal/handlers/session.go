@@ -13,13 +13,15 @@ import (
 )
 
 func (h *Handler) StartSession(c *gin.Context) {
+	userID := currentUserID(c)
+
 	deckID, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	deck, err := models.GetDeckByID(h.DB, deckID)
+	deck, err := models.GetDeckByID(h.DB, userID, deckID)
 	if err != nil {
 		c.String(http.StatusNotFound, "Deck not found")
 		return
@@ -74,7 +76,7 @@ func (h *Handler) StartSession(c *gin.Context) {
 	if fbID, err := strconv.ParseInt(c.Query("feedback"), 10, 64); err == nil {
 		ans, err := models.GetAnswerByID(h.DB, fbID)
 		if err == nil && ans != nil && ans.SessionID == session.ID {
-			card, err := models.GetCardByID(h.DB, ans.CardID)
+			card, err := models.GetCardByID(h.DB, userID, ans.CardID)
 			if err == nil {
 				h.render(c, http.StatusOK, "session.html", PageData{
 					Title: deck.Name + " — Study",
@@ -99,7 +101,7 @@ func (h *Handler) StartSession(c *gin.Context) {
 	}
 
 	cardID := session.CardQueue[session.Position]
-	card, err := models.GetCardByID(h.DB, cardID)
+	card, err := models.GetCardByID(h.DB, userID, cardID)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to load card")
 		return
@@ -133,17 +135,36 @@ func (h *Handler) StartSession(c *gin.Context) {
 }
 
 func (h *Handler) SubmitAnswer(c *gin.Context) {
-	_, err := getInt64(c, "id")
+	userID := currentUserID(c)
+
+	deckID, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
+		return
+	}
+
+	// session_id and card_id arrive in the request body, so both have to be
+	// bound back to a deck this user actually owns before anything is written.
+	if _, err := models.GetDeckByID(h.DB, userID, deckID); err != nil {
+		c.String(http.StatusNotFound, "Deck not found")
 		return
 	}
 
 	sessionID, _ := strconv.ParseInt(c.PostForm("session_id"), 10, 64)
 	cardID, _ := strconv.ParseInt(c.PostForm("card_id"), 10, 64)
 
-	card, err := models.GetCardByID(h.DB, cardID)
+	session, err := models.GetSessionByID(h.DB, deckID, sessionID)
+	if err != nil || session == nil {
+		c.String(http.StatusNotFound, "Session not found")
+		return
+	}
+
+	card, err := models.GetCardByID(h.DB, userID, cardID)
 	if err != nil {
+		c.String(http.StatusNotFound, "Card not found")
+		return
+	}
+	if card.DeckID != deckID {
 		c.String(http.StatusNotFound, "Card not found")
 		return
 	}
@@ -172,21 +193,21 @@ func (h *Handler) SubmitAnswer(c *gin.Context) {
 
 	var answerID int64
 	if c.PostForm("choice") != "" {
-		answerID, _ = models.RecordAnswer(h.DB, sessionID, cardID, isCorrect, c.PostForm("choice"))
+		answerID, _ = models.RecordAnswer(h.DB, session.ID, cardID, isCorrect, c.PostForm("choice"))
 	} else {
 		labels := []string{"Again", "Hard", "Good", "Easy"}
 		given := "Unknown"
 		if rating >= 0 && rating <= 3 {
 			given = labels[rating]
 		}
-		answerID, _ = models.RecordAnswer(h.DB, sessionID, cardID, isCorrect, given)
+		answerID, _ = models.RecordAnswer(h.DB, session.ID, cardID, isCorrect, given)
 	}
 
 	state := srs.CardState{Interval: card.Interval, Ease: card.Ease, Repetitions: card.Repetitions}
 	newState, dueDate := srs.Update(state, rating)
 	models.UpdateCardSRS(h.DB, cardID, newState.Interval, newState.Ease, newState.Repetitions, dueDate)
 
-	if err := models.AdvanceSession(h.DB, sessionID, isCorrect); err != nil {
+	if err := models.AdvanceSession(h.DB, session.ID, isCorrect); err != nil {
 		c.String(http.StatusInternalServerError, "Failed to advance session")
 		return
 	}
@@ -199,19 +220,40 @@ func (h *Handler) SubmitAnswer(c *gin.Context) {
 }
 
 func (h *Handler) EndSessionEarly(c *gin.Context) {
-	sessionID, _ := strconv.ParseInt(c.PostForm("session_id"), 10, 64)
-	models.EndSession(h.DB, sessionID)
-	h.redirectWithFlash(c, "/", "Session ended.")
-}
+	userID := currentUserID(c)
 
-func (h *Handler) SessionSummary(c *gin.Context) {
 	deckID, err := getInt64(c, "id")
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid deck ID")
 		return
 	}
 
-	deck, err := models.GetDeckByID(h.DB, deckID)
+	if _, err := models.GetDeckByID(h.DB, userID, deckID); err != nil {
+		c.String(http.StatusNotFound, "Deck not found")
+		return
+	}
+
+	sessionID, _ := strconv.ParseInt(c.PostForm("session_id"), 10, 64)
+	session, err := models.GetSessionByID(h.DB, deckID, sessionID)
+	if err != nil || session == nil {
+		c.String(http.StatusNotFound, "Session not found")
+		return
+	}
+
+	models.EndSession(h.DB, session.ID)
+	h.redirectWithFlash(c, "/", "Session ended.")
+}
+
+func (h *Handler) SessionSummary(c *gin.Context) {
+	userID := currentUserID(c)
+
+	deckID, err := getInt64(c, "id")
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid deck ID")
+		return
+	}
+
+	deck, err := models.GetDeckByID(h.DB, userID, deckID)
 	if err != nil {
 		c.String(http.StatusNotFound, "Deck not found")
 		return

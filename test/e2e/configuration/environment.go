@@ -11,6 +11,17 @@ var (
 	BaseURL string
 	Browser playwright.Browser
 	DB      *sql.DB
+
+	// Context is a browser context already carrying the shared test user's
+	// session cookie, so every case runs logged in without its own login
+	// flow. Auth cases build their own logged-out context instead.
+	Context playwright.BrowserContext
+)
+
+// The account every case shares. Auth cases register their own users.
+const (
+	TestUserEmail    = "e2e@memolang.test"
+	TestUserPassword = "e2e-password"
 )
 
 func IsHeaded() bool {

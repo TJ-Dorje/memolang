@@ -10,7 +10,9 @@ import (
 
 func NewPage(t *testing.T) playwright.Page {
 	t.Helper()
-	page, err := configuration.Browser.NewPage()
+	// configuration.Context already carries the shared test user's session
+	// cookie, so cases open pages already logged in.
+	page, err := configuration.Context.NewPage()
 	if err != nil {
 		t.Fatal(err)
 	}

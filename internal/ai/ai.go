@@ -38,9 +38,9 @@ type Provider interface {
 // ErrNotConfigured is returned by New when no provider is set.
 var ErrNotConfigured = errors.New("llm provider not configured")
 
-// LoadConfig reads the llm.* keys via models.GetSettings(db, "llm.").
-func LoadConfig(db *sql.DB) (Config, error) {
-	settings, err := models.GetSettings(db, "llm.")
+// LoadConfig reads one user's llm.* keys via models.GetSettings.
+func LoadConfig(db *sql.DB, userID int64) (Config, error) {
+	settings, err := models.GetSettings(db, userID, "llm.")
 	if err != nil {
 		return Config{}, err
 	}
