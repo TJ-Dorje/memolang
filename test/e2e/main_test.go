@@ -109,6 +109,15 @@ func TestE2E(t *testing.T) {
 		t.Run("ProtectedRouteWithoutSession", cases.ProtectedRouteWithoutSession)
 		t.Run("DecksArePrivatePerUser", cases.DecksArePrivatePerUser)
 	})
+	t.Run("Theme", func(t *testing.T) {
+		t.Run("ThemeDefaultsToSystem", cases.ThemeDefaultsToSystem)
+		t.Run("ThemeSwitcherIsPublic", cases.ThemeSwitcherIsPublic)
+		t.Run("ThemePersistsAcrossNavigation", cases.ThemePersistsAcrossNavigation)
+		t.Run("ThemeSystemClearsOverride", cases.ThemeSystemClearsOverride)
+		t.Run("ThemeReturnsToOriginPage", cases.ThemeReturnsToOriginPage)
+		t.Run("ThemeIgnoresUnknownCookie", cases.ThemeIgnoresUnknownCookie)
+		t.Run("ThemeIgnoresUnknownPlainCookie", cases.ThemeIgnoresUnknownPlainCookie)
+	})
 	t.Run("Settings", func(t *testing.T) {
 		t.Run("SettingsNavLink", cases.SettingsNavLink)
 		t.Run("SaveSettings", cases.SaveSettings)

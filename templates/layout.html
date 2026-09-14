@@ -1,6 +1,10 @@
 {{define "_header"}}
 <!DOCTYPE html>
-<html lang="en">
+{{/* data-theme is stamped server-side from the theme cookie, so the correct
+     palette is in the first bytes the browser parses — no flash of the wrong
+     theme on these full page loads. Absent means "follow the OS", which the
+     stylesheet handles via prefers-color-scheme. */}}
+<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +15,20 @@
     <header>
         <nav>
             <a href="/" class="logo">MemoLang</a>
+
+            {{/* Three-state so "follow my OS" stays reachable after picking a
+                 fixed theme. Buttons carry no type="submit" for the same
+                 reason as Log Out below. */}}
+            <form method="POST" action="/theme" class="theme-toggle">
+                <input type="hidden" name="next" value="{{.Path}}">
+                <button name="theme" value="system" class="theme-opt{{if eq .Theme ""}} active{{end}}"
+                        aria-label="Follow system theme" title="Follow system theme">A</button>
+                <button name="theme" value="light" class="theme-opt{{if eq .Theme "light"}} active{{end}}"
+                        aria-label="Light theme" title="Light theme">L</button>
+                <button name="theme" value="dark" class="theme-opt{{if eq .Theme "dark"}} active{{end}}"
+                        aria-label="Dark theme" title="Dark theme">D</button>
+            </form>
+
             {{if .User}}
             <a href="/settings">Settings</a>
             <span class="nav-user">{{.User.Email}}</span>

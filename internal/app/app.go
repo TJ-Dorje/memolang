@@ -27,6 +27,8 @@ func NewRouter(database *sql.DB) *gin.Engine {
 	r.GET("/register", h.RegisterForm)
 	r.POST("/register", h.Register)
 	r.POST("/logout", h.Logout)
+	// Public: the login and register pages carry the theme switcher too.
+	r.POST("/theme", h.SetTheme)
 
 	// Everything else requires a session.
 	protected := r.Group("/")

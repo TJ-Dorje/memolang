@@ -17,7 +17,12 @@ type PageData struct {
 	Title string
 	Flash string
 	User  *models.User
-	Data  any
+	// Theme is "dark", "light", or "" to follow the OS. render fills it.
+	Theme string
+	// Path is the current request URI, so the theme switcher can post a
+	// return address instead of trusting Referer. render fills it.
+	Path string
+	Data any
 }
 
 type Handler struct {
@@ -43,9 +48,14 @@ func (h *Handler) loadPending(token string) (any, bool) {
 	return v, ok
 }
 
-// render fills in the logged-in user for the nav so individual handlers don't
-// each have to, then renders the page.
+// render fills in the logged-in user for the nav, plus the chrome every page
+// shares (theme, return path), so individual handlers don't each have to, then
+// renders the page. This is the only c.HTML call in the package, which is what
+// makes filling these here sufficient.
 func (h *Handler) render(c *gin.Context, status int, template string, pd PageData) {
+	pd.Theme = currentTheme(c)
+	pd.Path = c.Request.URL.RequestURI()
+
 	if pd.User == nil {
 		if v, ok := c.Get("user"); ok {
 			if u, ok := v.(*models.User); ok {

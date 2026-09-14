@@ -84,7 +84,9 @@
 
     <button class="btn card-reveal-btn" id="reveal-btn">Reveal</button>
 
-    <form method="POST" action="/decks/{{$deck.ID}}/session/answer" id="answer-form" style="display:none;">
+    {{/* Hidden until revealed by the .card--flipped class; the rule lives in
+         style.css, not inline here, so the reveal can be animated. */}}
+    <form method="POST" action="/decks/{{$deck.ID}}/session/answer" id="answer-form">
         <input type="hidden" name="session_id" value="{{$session.ID}}">
         <input type="hidden" name="card_id" value="{{$card.ID}}">
         <div class="btn-group" style="justify-content: center; margin-top: 1rem;">
