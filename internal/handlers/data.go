@@ -1,6 +1,9 @@
 package handlers
 
-import "memolang/internal/models"
+import (
+	"memolang/internal/ai"
+	"memolang/internal/models"
+)
 
 // DashboardData is the data payload for the dashboard page.
 type DashboardData struct {
@@ -73,7 +76,9 @@ type SettingsData struct {
 	// EnvKey reports that LLM_API_KEY is set and therefore overrides whatever
 	// is stored, so the form can say so instead of looking out of date.
 	EnvKey bool
-	Error  string
+	// Presets drives the provider dropdown and the prefill behaviour.
+	Presets []ai.Preset
+	Error   string
 }
 
 // SessionSummaryData is the data payload for the session summary page.

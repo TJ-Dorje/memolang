@@ -8,22 +8,39 @@
 <h2>LLM Provider</h2>
 
 <form method="POST" action="/settings">
+    {{/* Options carry their preset on data-* attributes so settings.js can
+         refill the fields when the choice changes. With JS off the fields
+         still work: SaveSettings falls back to the same preset server-side. */}}
     <div>
         <label for="provider">Provider</label>
         <select name="provider" id="provider">
-            <option value="ollama" {{if eq .Data.Provider "ollama"}}selected{{end}}>Ollama (local)</option>
-            <option value="openai" {{if eq .Data.Provider "openai"}}selected{{end}}>OpenAI</option>
-            <option value="anthropic" {{if eq .Data.Provider "anthropic"}}selected{{end}}>Anthropic</option>
-            <option value="custom" {{if eq .Data.Provider "custom"}}selected{{end}}>Custom (OpenAI-compatible)</option>
+            {{range .Data.Presets}}
+            <option value="{{.ID}}"
+                    data-base-url="{{.BaseURL}}"
+                    data-model="{{.DefaultModel}}"
+                    data-needs-key="{{if .NeedsKey}}1{{end}}"
+                    data-key-url="{{.KeyURL}}"
+                    data-note="{{.Note}}"
+                    {{if eq $.Data.Provider .ID}}selected{{end}}>{{.Label}}</option>
+            {{end}}
         </select>
+        {{range .Data.Presets}}{{if eq $.Data.Provider .ID}}
+        <small class="hint" id="provider-note">{{.Note}}</small>
+        {{end}}{{end}}
     </div>
+
+    {{range .Data.Presets}}{{if and (eq $.Data.Provider .ID) .KeyURL}}
+    <div id="key-link-row">
+        <small class="hint">Need a key? <a href="{{.KeyURL}}" target="_blank" rel="noopener noreferrer">Get one here →</a></small>
+    </div>
+    {{end}}{{end}}
 
     <div>
         <label for="base_url">Base URL</label>
         <input type="text" id="base_url" name="base_url"
             value="{{.Data.BaseURL}}"
             placeholder="e.g. http://localhost:11434/v1">
-        <small class="hint">Ollama: <code>http://localhost:11434/v1</code> · OpenAI: <code>https://api.openai.com/v1</code> · Anthropic: <code>https://api.anthropic.com</code></small>
+        <small class="hint">Filled in from the provider you pick. Leave it alone unless your server is somewhere else.</small>
     </div>
 
     <div>
@@ -47,12 +64,14 @@
         <input type="text" id="model" name="model"
             value="{{.Data.Model}}"
             placeholder="e.g. llama3, gpt-4o-mini, claude-sonnet-5">
+        <small class="hint">A starting point, not a guarantee — model names change. If you get a 404, check the provider's model list.</small>
     </div>
 
     <div>
         <button type="submit" class="btn btn-primary">Save</button>
     </div>
 </form>
+<script src="/static/settings.js"></script>
 
 <form method="POST" action="/settings/test">
     <button type="submit" class="btn">Test Connection</button>

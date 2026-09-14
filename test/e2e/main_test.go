@@ -126,5 +126,8 @@ func TestE2E(t *testing.T) {
 		t.Run("ClearAndNewKeyIsRejected", cases.ClearAndNewKeyIsRejected)
 		t.Run("AIFormWithoutConfig", cases.AIFormWithoutConfig)
 		t.Run("SettingsValidation", cases.SettingsValidation)
+		t.Run("PresetPrefillsBaseURLAndModel", cases.PresetPrefillsBaseURLAndModel)
+		t.Run("PresetSaveNeedsOnlyAKey", cases.PresetSaveNeedsOnlyAKey)
+		t.Run("PresetSwitchDoesNotClobberCustom", cases.PresetSwitchDoesNotClobberCustom)
 	})
 }

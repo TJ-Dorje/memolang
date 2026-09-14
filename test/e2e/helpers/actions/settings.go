@@ -110,3 +110,21 @@ func SubmitSettings(t *testing.T, page playwright.Page) {
 		t.Fatal(err)
 	}
 }
+
+// SelectProvider picks a provider from the dropdown, mirroring a real user's
+// change event so the progressive-enhancement script runs.
+func SelectProvider(t *testing.T, page playwright.Page, provider string) {
+	t.Helper()
+	values := []string{provider}
+	if _, err := page.Locator("select[name=provider]").SelectOption(playwright.SelectOptionValues{Values: &values}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ClearField empties an input, for cases that need to submit it blank.
+func ClearField(t *testing.T, page playwright.Page, selector string) {
+	t.Helper()
+	if err := page.Locator(selector).Clear(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -29,24 +29,42 @@ func (h *Handler) SettingsPage(c *gin.Context) {
 	// appear for a key that is not in the database at all.
 	storedKey, _ := models.GetSetting(h.DB, userID, "llm.api_key")
 
+	provider, baseURL, model := presetDefaults(cfg.Provider, cfg.BaseURL, cfg.Model)
+
 	h.render(c, http.StatusOK, "settings.html", PageData{
 		Title: "Settings",
 		Flash: h.getFlash(c),
 		Data: SettingsData{
-			Provider:  cfg.Provider,
-			BaseURL:   cfg.BaseURL,
-			Model:     cfg.Model,
+			Provider:  provider,
+			BaseURL:   baseURL,
+			Model:     model,
 			HasAPIKey: storedKey != "",
 			EnvKey:    ai.APIKeyFromEnv() != "",
+			Presets:   ai.Presets(),
 		},
 	})
 }
 
-var validProviders = map[string]bool{
-	"ollama":    true,
-	"openai":    true,
-	"anthropic": true,
-	"custom":    true,
+// presetDefaults fills a blank form from the selected provider's preset, so a
+// first-time user sees a working base URL and model rather than two empty
+// boxes. Stored values always win — a preset never overwrites a real choice.
+func presetDefaults(provider, baseURL, model string) (string, string, string) {
+	if provider == "" {
+		provider = ai.Presets()[0].ID
+	}
+
+	preset, ok := ai.PresetByID(provider)
+	if !ok {
+		return provider, baseURL, model
+	}
+
+	if baseURL == "" {
+		baseURL = preset.BaseURL
+	}
+	if model == "" {
+		model = preset.DefaultModel
+	}
+	return provider, baseURL, model
 }
 
 func (h *Handler) SaveSettings(c *gin.Context) {
@@ -60,9 +78,21 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	apiKey := c.PostForm("api_key")
 	clearKey := c.PostForm("clear_api_key") == "1"
 
-	if !validProviders[provider] {
-		h.settingsError(c, userID, provider, baseURL, model, "Invalid provider. Must be one of: ollama, openai, anthropic, custom.")
+	preset, known := ai.PresetByID(provider)
+	if !known {
+		h.settingsError(c, userID, provider, baseURL, model, "Invalid provider. Choose one from the list.")
 		return
+	}
+
+	// Fall back to the preset's defaults so a user who never touched these
+	// fields — or who has JavaScript off and never saw them prefilled — still
+	// ends up with a working configuration. Custom has no defaults, so it
+	// still fails the required check below, which is the point of it.
+	if baseURL == "" {
+		baseURL = preset.BaseURL
+	}
+	if model == "" {
+		model = preset.DefaultModel
 	}
 
 	if baseURL == "" || model == "" {
@@ -120,6 +150,7 @@ func (h *Handler) settingsError(c *gin.Context, userID int64, provider, baseURL,
 			Model:     model,
 			HasAPIKey: savedKey != "",
 			EnvKey:    ai.APIKeyFromEnv() != "",
+			Presets:   ai.Presets(),
 			Error:     msg,
 		},
 	})

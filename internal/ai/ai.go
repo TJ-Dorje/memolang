@@ -73,31 +73,33 @@ func LoadConfig(db *sql.DB, userID int64) (Config, error) {
 	}, nil
 }
 
-// New builds a Provider from config.
+// New builds a Provider from config. Which client to use, and whether a key is
+// required, both come from the provider's preset rather than from a switch
+// that has to be kept in step with the list by hand.
 func New(cfg Config) (Provider, error) {
 	if cfg.Provider == "" {
 		return nil, ErrNotConfigured
 	}
 
-	// Validation: BaseURL and Model must be non-empty
-	if cfg.BaseURL == "" && cfg.Provider != "anthropic" {
+	preset, ok := PresetByID(cfg.Provider)
+	if !ok {
+		return nil, fmt.Errorf("unknown provider %q", cfg.Provider)
+	}
+
+	// Anthropic supplies its own base URL when none is stored.
+	if cfg.BaseURL == "" && preset.Transport != "anthropic" {
 		return nil, fmt.Errorf("BaseURL and Model are required")
 	}
 	if cfg.Model == "" {
 		return nil, fmt.Errorf("BaseURL and Model are required")
 	}
 
-	// APIKey must be non-empty for "openai" and "anthropic"
-	if (cfg.Provider == "openai" || cfg.Provider == "anthropic") && cfg.APIKey == "" {
+	if preset.NeedsKey && cfg.APIKey == "" {
 		return nil, fmt.Errorf("APIKey is required for provider %q", cfg.Provider)
 	}
 
-	switch cfg.Provider {
-	case "anthropic":
+	if preset.Transport == "anthropic" {
 		return newAnthropic(cfg), nil
-	case "ollama", "openai", "custom":
-		return newOpenAICompat(cfg), nil
-	default:
-		return nil, fmt.Errorf("unknown provider %q", cfg.Provider)
 	}
+	return newOpenAICompat(cfg), nil
 }
