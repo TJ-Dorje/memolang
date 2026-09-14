@@ -63,12 +63,13 @@ func AnswerMC(t *testing.T, page playwright.Page, answers map[string]string, cor
 			t.Fatal(err)
 		}
 		text = strings.TrimSpace(text)
-		if (text == expected) == correct {
-			if err := options.Nth(i).Click(); err != nil {
-				t.Fatal(err)
-			}
-			return text
+		if (text == expected) != correct {
+			continue
 		}
+		if err := options.Nth(i).Click(); err != nil {
+			t.Fatal(err)
+		}
+		return text
 	}
 	t.Fatalf("no MC option with correct=%v for front %q (expected back %q, %d options)", correct, front, expected, n)
 	return ""

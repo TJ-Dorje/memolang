@@ -32,24 +32,40 @@ func (h *Handler) Dashboard(c *gin.Context) {
 }
 
 func (h *Handler) NewDeckForm(c *gin.Context) {
-	if c.Query("ai_mode") == "true" {
-		formData := AIFormData{Mode: "srs"}
-		if tok := c.Query("token"); tok != "" {
-			if v, ok := h.loadPending(tok); ok {
-				formData = v.(AIFormData)
-			}
-		}
-		h.render(c, http.StatusOK, "ai_form.html", PageData{
-			Title: "Generate Cards with AI",
+	if c.Query("ai_mode") != "true" {
+		h.render(c, http.StatusOK, "deck_form.html", PageData{
+			Title: "New Deck",
 			Flash: h.getFlash(c),
-			Data:  formData,
 		})
 		return
 	}
-	h.render(c, http.StatusOK, "deck_form.html", PageData{
-		Title: "New Deck",
+
+	h.render(c, http.StatusOK, "ai_form.html", PageData{
+		Title: "Generate Cards with AI",
 		Flash: h.getFlash(c),
+		Data:  h.pendingAIForm(c.Query("token")),
 	})
+}
+
+// pendingAIForm restores a half-filled AI form by token, falling back to a
+// fresh one when the token is absent, already consumed, or holds something
+// else. The pending map is shared with the CSV import flow, so the type
+// assertion has to be checked: an import token replayed here would otherwise
+// panic.
+func (h *Handler) pendingAIForm(token string) AIFormData {
+	fresh := AIFormData{Mode: "srs"}
+	if token == "" {
+		return fresh
+	}
+	v, ok := h.loadPending(token)
+	if !ok {
+		return fresh
+	}
+	form, ok := v.(AIFormData)
+	if !ok {
+		return fresh
+	}
+	return form
 }
 
 func (h *Handler) CreateDeckAI(c *gin.Context) {

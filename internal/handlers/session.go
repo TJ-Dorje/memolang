@@ -34,68 +34,28 @@ func (h *Handler) StartSession(c *gin.Context) {
 	}
 
 	if session == nil {
-		if c.Query("feedback") != "" {
-			c.Redirect(http.StatusSeeOther, "/decks/"+c.Param("id")+"/session")
+		started, ok := h.startNewSession(c, deck)
+		if !ok {
 			return
 		}
-		var cardIDs []int64
-		if deck.Mode == "srs" {
-			cardIDs, err = models.GetDueCardIDs(h.DB, deckID, 50)
-		} else {
-			cardIDs, err = models.GetNewCardIDs(h.DB, deckID, 20)
-		}
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Failed to build queue")
-			return
-		}
-
-		if len(cardIDs) == 0 {
-			h.render(c, http.StatusOK, "session.html", PageData{
-				Title: deck.Name + " — Study",
-				Flash: h.getFlash(c),
-				Data: SessionData{
-					Deck:  deck,
-					Empty: true,
-				},
-			})
-			return
-		}
-
-		quizMode := c.Query("mode")
-		if quizMode != "mc" {
-			quizMode = "flashcard"
-		}
-		newSess, err := models.CreateSession(h.DB, deckID, quizMode, cardIDs)
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Failed to create session")
-			return
-		}
-		session = &newSess
+		session = started
 	}
 
-	if fbID, err := strconv.ParseInt(c.Query("feedback"), 10, 64); err == nil {
-		ans, err := models.GetAnswerByID(h.DB, fbID)
-		if err == nil && ans != nil && ans.SessionID == session.ID {
-			card, err := models.GetCardByID(h.DB, userID, ans.CardID)
-			if err == nil {
-				h.render(c, http.StatusOK, "session.html", PageData{
-					Title: deck.Name + " — Study",
-					Flash: h.getFlash(c),
-					Data: SessionData{
-						Deck: deck, Session: *session,
-						Feedback: true, Answer: *ans, AnswerCard: card,
-						Progress: float64(session.Position) / float64(len(session.CardQueue)) * 100,
-					},
-				})
-				return
-			}
-		}
+	if ans, card, ok := h.feedbackFor(c, userID, session); ok {
+		h.render(c, http.StatusOK, "session.html", PageData{
+			Title: deck.Name + " — Study",
+			Flash: h.getFlash(c),
+			Data: SessionData{
+				Deck: deck, Session: *session,
+				Feedback: true, Answer: *ans, AnswerCard: card,
+				Progress: float64(session.Position) / float64(len(session.CardQueue)) * 100,
+			},
+		})
+		return
 	}
 
 	if session.Position >= len(session.CardQueue) {
-		if session.EndedAt == nil {
-			models.EndSession(h.DB, session.ID)
-		}
+		h.endSessionIfRunning(session)
 		c.Redirect(http.StatusSeeOther, "/decks/"+c.Param("id")+"/session/summary")
 		return
 	}
@@ -134,6 +94,117 @@ func (h *Handler) StartSession(c *gin.Context) {
 	})
 }
 
+// startNewSession builds the card queue for a deck with no active session and
+// creates it. It writes its own response and reports false when the caller
+// should simply return — nothing due to study, a stale ?feedback= to shake
+// off, or a failure.
+func (h *Handler) startNewSession(c *gin.Context, deck models.Deck) (*models.StudySession, bool) {
+	// A ?feedback= pointing at a session that no longer exists: drop the query
+	// and start clean.
+	if c.Query("feedback") != "" {
+		c.Redirect(http.StatusSeeOther, "/decks/"+c.Param("id")+"/session")
+		return nil, false
+	}
+
+	cardIDs, err := h.queueFor(deck)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to build queue")
+		return nil, false
+	}
+
+	if len(cardIDs) == 0 {
+		h.render(c, http.StatusOK, "session.html", PageData{
+			Title: deck.Name + " — Study",
+			Flash: h.getFlash(c),
+			Data: SessionData{
+				Deck:  deck,
+				Empty: true,
+			},
+		})
+		return nil, false
+	}
+
+	session, err := models.CreateSession(h.DB, deck.ID, quizModeFrom(c), cardIDs)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to create session")
+		return nil, false
+	}
+	return &session, true
+}
+
+// queueFor picks the card queue according to the deck's scheduling mode: SRS
+// decks study what is due, linear decks work through what is still unlearned.
+func (h *Handler) queueFor(deck models.Deck) ([]int64, error) {
+	if deck.Mode == "srs" {
+		return models.GetDueCardIDs(h.DB, deck.ID, 50)
+	}
+	return models.GetNewCardIDs(h.DB, deck.ID, 20)
+}
+
+// quizModeFrom treats anything that is not an explicit multiple-choice request
+// as a flashcard session.
+func quizModeFrom(c *gin.Context) string {
+	if c.Query("mode") == "mc" {
+		return "mc"
+	}
+	return "flashcard"
+}
+
+// feedbackFor resolves a ?feedback=<answer id> into the answer and its card,
+// reporting false whenever the feedback screen should not be shown: no such
+// query, an unparseable or unknown id, or an answer belonging to a different
+// session.
+func (h *Handler) feedbackFor(c *gin.Context, userID int64, session *models.StudySession) (*models.SessionAnswer, models.Card, bool) {
+	fbID, err := strconv.ParseInt(c.Query("feedback"), 10, 64)
+	if err != nil {
+		return nil, models.Card{}, false
+	}
+
+	ans, err := models.GetAnswerByID(h.DB, fbID)
+	if err != nil || ans == nil || ans.SessionID != session.ID {
+		return nil, models.Card{}, false
+	}
+
+	card, err := models.GetCardByID(h.DB, userID, ans.CardID)
+	if err != nil {
+		return nil, models.Card{}, false
+	}
+	return ans, card, true
+}
+
+// endSessionIfRunning closes a session that ran off the end of its queue,
+// unless it was already closed (ending early, or a refresh of the summary).
+func (h *Handler) endSessionIfRunning(session *models.StudySession) {
+	if session.EndedAt != nil {
+		return
+	}
+	models.EndSession(h.DB, session.ID)
+}
+
+// ratingLabels index by SM-2 rating, and double as the text shown for a
+// flashcard answer on the summary screen.
+var ratingLabels = [4]string{"Again", "Hard", "Good", "Easy"}
+
+// gradeAnswer turns a submitted answer into an SM-2 rating, whether it counted
+// as correct, and the label to record for the summary screen. The two quiz
+// modes post different fields: multiple choice posts `choice`, flashcards post
+// a self-assessed `rating`.
+//
+// The rating is clamped rather than validated because it arrives from the
+// request body, where nothing stops a caller posting 99.
+func gradeAnswer(c *gin.Context, card models.Card) (isCorrect bool, rating int, given string) {
+	if choice := c.PostForm("choice"); choice != "" {
+		if choice == card.Back {
+			return true, 2, choice
+		}
+		return false, 0, choice
+	}
+
+	r, _ := strconv.Atoi(c.PostForm("rating"))
+	r = min(max(r, 0), len(ratingLabels)-1)
+	return r >= 2, r, ratingLabels[r]
+}
+
 func (h *Handler) SubmitAnswer(c *gin.Context) {
 	userID := currentUserID(c)
 
@@ -169,39 +240,8 @@ func (h *Handler) SubmitAnswer(c *gin.Context) {
 		return
 	}
 
-	isCorrect := false
-	rating := 2
-
-	if c.PostForm("choice") != "" {
-		choice := c.PostForm("choice")
-		isCorrect = (choice == card.Back)
-		if isCorrect {
-			rating = 2
-		} else {
-			rating = 0
-		}
-	} else {
-		r, _ := strconv.Atoi(c.PostForm("rating"))
-		if r < 0 {
-			r = 0
-		} else if r > 3 {
-			r = 3
-		}
-		rating = r
-		isCorrect = (rating >= 2)
-	}
-
-	var answerID int64
-	if c.PostForm("choice") != "" {
-		answerID, _ = models.RecordAnswer(h.DB, session.ID, cardID, isCorrect, c.PostForm("choice"))
-	} else {
-		labels := []string{"Again", "Hard", "Good", "Easy"}
-		given := "Unknown"
-		if rating >= 0 && rating <= 3 {
-			given = labels[rating]
-		}
-		answerID, _ = models.RecordAnswer(h.DB, session.ID, cardID, isCorrect, given)
-	}
+	isCorrect, rating, given := gradeAnswer(c, card)
+	answerID, _ := models.RecordAnswer(h.DB, session.ID, cardID, isCorrect, given)
 
 	state := srs.CardState{Interval: card.Interval, Ease: card.Ease, Repetitions: card.Repetitions}
 	newState, dueDate := srs.Update(state, rating)

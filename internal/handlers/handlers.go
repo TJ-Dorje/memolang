@@ -57,13 +57,23 @@ func (h *Handler) render(c *gin.Context, status int, template string, pd PageDat
 	pd.Path = c.Request.URL.RequestURI()
 
 	if pd.User == nil {
-		if v, ok := c.Get("user"); ok {
-			if u, ok := v.(*models.User); ok {
-				pd.User = u
-			}
-		}
+		pd.User = userFromContext(c)
 	}
 	c.HTML(status, template, pd)
+}
+
+// userFromContext returns the user RequireAuth stored, or nil on the public
+// routes where there is none.
+func userFromContext(c *gin.Context) *models.User {
+	v, ok := c.Get("user")
+	if !ok {
+		return nil
+	}
+	u, ok := v.(*models.User)
+	if !ok {
+		return nil
+	}
+	return u
 }
 
 func (h *Handler) redirectWithFlash(c *gin.Context, location, flash string) {
