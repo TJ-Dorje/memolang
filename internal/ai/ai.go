@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"memolang/internal/models"
 )
@@ -38,6 +39,34 @@ type Provider interface {
 
 // ErrNotConfigured is returned by New when no provider is set.
 var ErrNotConfigured = errors.New("llm provider not configured")
+
+// ModelNotListedError reports that the server answered and accepted the
+// credentials, but does not advertise the configured model. Connectivity and
+// auth are fine; the model id is most likely wrong or out of date.
+//
+// It is deliberately a distinct type rather than a plain error: callers should
+// present it as a warning, not as "connection failed". Some servers also list
+// models under ids that differ from the ones they accept, so this can be a
+// false alarm and must never block a configuration the user insists on.
+type ModelNotListedError struct {
+	Model     string
+	Available []string
+}
+
+func (e *ModelNotListedError) Error() string {
+	if len(e.Available) == 0 {
+		return fmt.Sprintf("connected, but the server does not list model %q", e.Model)
+	}
+
+	shown := e.Available
+	suffix := ""
+	if len(shown) > 5 {
+		suffix = fmt.Sprintf(" (+%d more)", len(shown)-5)
+		shown = shown[:5]
+	}
+	return fmt.Sprintf("connected, but the server does not list model %q. Available: %s%s",
+		e.Model, strings.Join(shown, ", "), suffix)
+}
 
 // APIKeyEnvVar overrides the stored key when set. It exists so a key with real
 // billing attached never has to be written to the settings table, which holds

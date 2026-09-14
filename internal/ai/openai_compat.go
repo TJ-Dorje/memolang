@@ -30,9 +30,9 @@ func newOpenAICompat(cfg Config) *openAICompat {
 }
 
 type chatRequest struct {
-	Model    string        `json:"model"`
-	Messages []chatMessage `json:"messages"`
-	Stream   bool          `json:"stream"`
+	Model     string        `json:"model"`
+	Messages  []chatMessage `json:"messages"`
+	Stream    bool          `json:"stream"`
 	MaxTokens int           `json:"max_tokens,omitempty"`
 }
 
@@ -107,8 +107,97 @@ func (c *openAICompat) GenerateCards(ctx context.Context, language, promptText s
 	return parseCards(chatResp.Choices[0].Message.Content)
 }
 
+// modelsResponse is the GET /models payload. Only the ids matter.
+type modelsResponse struct {
+	Data []struct {
+		ID string `json:"id"`
+	} `json:"data"`
+}
+
+// Ping verifies the configuration without provoking inference.
+//
+// It asks GET /models first. That endpoint is cheap, answers immediately, and
+// still proves the three things that actually go wrong: the server is
+// reachable, the base URL is right, and the key is accepted. It also lets us
+// check the configured model exists, which a completion request cannot do
+// until it has already failed.
+//
+// The previous implementation sent a real completion with a 5-second budget.
+// Local servers such as LM Studio and Ollama load weights lazily, so the first
+// request after startup spends tens of seconds paging gigabytes off disk and
+// blew that deadline — reporting "connection failed" for a configuration that
+// was entirely correct, and which then succeeded on a second press because the
+// failed attempt had started the load.
+//
+// Not every OpenAI-compatible server implements /models, so a completion ping
+// remains as a fallback. It gets a longer budget precisely because that path
+// may have to sit through a cold model load.
 func (c *openAICompat) Ping(ctx context.Context) error {
+	models, err := c.listModels(ctx)
+	if err == nil {
+		return checkModelListed(c.model, models)
+	}
+	return c.pingCompletion(ctx)
+}
+
+// listModels returns the model ids the server advertises.
+func (c *openAICompat) listModels(ctx context.Context) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/models", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 200))
+		return nil, fmt.Errorf("api error (status %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var parsed modelsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	ids := make([]string, 0, len(parsed.Data))
+	for _, m := range parsed.Data {
+		ids = append(ids, m.ID)
+	}
+	return ids, nil
+}
+
+// checkModelListed reports a mismatch as a ModelNotListedError, which callers
+// show as a warning rather than a failure. An empty list means the server
+// answered but advertises nothing, which is not evidence the model is wrong.
+func checkModelListed(model string, available []string) error {
+	if len(available) == 0 {
+		return nil
+	}
+
+	for _, id := range available {
+		// Some servers namespace ids (e.g. "models/gemini-3.6-flash") while
+		// still accepting the bare name, so match on either shape.
+		if id == model || strings.HasSuffix(id, "/"+model) {
+			return nil
+		}
+	}
+	return &ModelNotListedError{Model: model, Available: available}
+}
+
+// pingCompletion is the fallback for servers with no /models endpoint. Its
+// budget is generous because reaching it can mean waiting out a cold load.
+func (c *openAICompat) pingCompletion(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	reqBody := chatRequest{

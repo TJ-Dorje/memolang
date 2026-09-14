@@ -44,7 +44,7 @@ var presets = []Preset{
 		ID:           "gemini",
 		Label:        "Google Gemini (free tier)",
 		BaseURL:      "https://generativelanguage.googleapis.com/v1beta/openai/",
-		DefaultModel: "gemini-2.0-flash",
+		DefaultModel: "gemini-3.6-flash",
 		NeedsKey:     true,
 		KeyURL:       "https://aistudio.google.com/apikey",
 		Note:         "Free tier, no card required. Google may use free-tier input to improve its models.",

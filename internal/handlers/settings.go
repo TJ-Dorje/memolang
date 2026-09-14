@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -171,7 +172,19 @@ func (h *Handler) TestLLMConnection(c *gin.Context) {
 		return
 	}
 
-	if err := provider.Ping(c.Request.Context()); err != nil {
+	err = provider.Ping(c.Request.Context())
+
+	// The server answered and took the credentials; only the model id looks
+	// wrong. Calling that a connection failure sends people to re-check a URL
+	// and key that are already fine, and the listing can be a false alarm on
+	// servers that accept ids they do not advertise.
+	var notListed *ai.ModelNotListedError
+	if errors.As(err, &notListed) {
+		h.redirectWithFlash(c, "/settings", "Warning: "+notListed.Error())
+		return
+	}
+
+	if err != nil {
 		h.redirectWithFlash(c, "/settings", "Connection failed: "+err.Error())
 		return
 	}
