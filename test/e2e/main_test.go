@@ -85,6 +85,12 @@ func TestE2E(t *testing.T) {
 		t.Run("DashboardLayout", cases.DashboardLayout)
 		t.Run("EditDeck", cases.EditDeck)
 	})
+	t.Run("Rating", func(t *testing.T) {
+		t.Run("RatingButtonsShowGaps", cases.RatingButtonsShowGaps)
+		t.Run("HardCountsAsCorrect", cases.HardCountsAsCorrect)
+		t.Run("AgainBringsTheCardBack", cases.AgainBringsTheCardBack)
+		t.Run("AgainStopsAfterThreeAppearances", cases.AgainStopsAfterThreeAppearances)
+	})
 	t.Run("Mode", func(t *testing.T) {
 		t.Run("LinearDeckKeepsStudyingAfterEveryCardIsPassed", cases.LinearDeckKeepsStudyingAfterEveryCardIsPassed)
 		t.Run("SRSDeckSaysWhenToComeBack", cases.SRSDeckSaysWhenToComeBack)

@@ -108,6 +108,20 @@ func AdvanceSession(db *sql.DB, id int64, correct bool) error {
 	return err
 }
 
+// AppendToSessionQueue adds a card to the end of a session's queue, so it
+// comes up again before the session ends. json_insert with '$[#]' appends to
+// the stored JSON array in one statement, with no read-modify-write race.
+func AppendToSessionQueue(db *sql.DB, id, cardID int64) error {
+	res, err := db.Exec(
+		"UPDATE study_sessions SET card_queue = json_insert(card_queue, '$[#]', ?) WHERE id = ?",
+		cardID, id,
+	)
+	if err != nil {
+		return err
+	}
+	return requireRowAffected(res)
+}
+
 func EndSession(db *sql.DB, id int64) error {
 	_, err := db.Exec("UPDATE study_sessions SET ended_at = datetime('now') WHERE id = ?", id)
 	return err

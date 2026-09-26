@@ -56,22 +56,29 @@ func RateAllFlashcards(t *testing.T, page playwright.Page, rating int) {
 		if contains(page.URL(), "summary") {
 			return
 		}
-		if err := page.Locator("#reveal-btn").Click(); err != nil {
-			t.Fatal(err)
-		}
-		// Wait for the navigation the rating causes. WaitForURL is no use
-		// here: the next card lives at the same /session URL, so it returns at
-		// once and the next pass reads the old page. ExpectNavigation is marked
-		// deprecated as racy, but that applies to waiting after the fact;
-		// triggering the click inside its callback is the race-free use.
-		_, err := page.ExpectNavigation(func() error {
-			return page.Locator("button[value='" + string(rune('0'+rating)) + "']").Click()
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		RateFlashcard(t, page, rating)
 	}
 	t.Fatalf("session did not reach its summary within %d cards", maxClickLoop)
+}
+
+// RateFlashcard reveals the current card, rates it, and waits for the next
+// page to load.
+func RateFlashcard(t *testing.T, page playwright.Page, rating int) {
+	t.Helper()
+	if err := page.Locator("#reveal-btn").Click(); err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the navigation the rating causes. WaitForURL is no use here:
+	// the next card lives at the same /session URL, so it returns at once and
+	// the caller reads the old page. ExpectNavigation is marked deprecated as
+	// racy, but that applies to waiting after the fact; triggering the click
+	// inside its callback is the race-free use.
+	_, err := page.ExpectNavigation(func() error {
+		return page.Locator("button[value='" + string(rune('0'+rating)) + "']").Click()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 // DeleteDeck removes the deck; no-op if deckURL is empty or the deck is

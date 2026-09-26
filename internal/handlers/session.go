@@ -91,6 +91,7 @@ func (h *Handler) StartSession(c *gin.Context) {
 			Card:      card,
 			Progress:  progress,
 			MCOptions: mcOptions,
+			Gaps:      gapLabels(card),
 		},
 	})
 }
@@ -204,14 +205,77 @@ var ratingLabels = [4]string{"Again", "Hard", "Good", "Easy"}
 func gradeAnswer(c *gin.Context, card models.Card) (isCorrect bool, rating int, given string) {
 	if choice := c.PostForm("choice"); choice != "" {
 		if choice == card.Back {
-			return true, 2, choice
+			return true, srs.Good, choice
 		}
-		return false, 0, choice
+		return false, srs.Again, choice
 	}
 
 	r, _ := strconv.Atoi(c.PostForm("rating"))
-	r = min(max(r, 0), len(ratingLabels)-1)
-	return r >= 2, r, ratingLabels[r]
+	r = min(max(r, srs.Again), srs.Easy)
+	// Hard is a pass: remembered, just with effort. Only Again is a miss.
+	return r != srs.Again, r, ratingLabels[r]
+}
+
+// maxAppearances caps how often one card can come up in a session, so a card
+// you keep failing cannot hold the session hostage.
+const maxAppearances = 3
+
+// requeueIfAgain puts a missed card back at the end of the session, the
+// moment a quick retry helps most, unless it has already come up
+// maxAppearances times. Rescheduling for tomorrow happens regardless.
+func (h *Handler) requeueIfAgain(session *models.StudySession, cardID int64, rating int) error {
+	if rating != srs.Again {
+		return nil
+	}
+	seen := 0
+	for _, id := range session.CardQueue {
+		if id == cardID {
+			seen++
+		}
+	}
+	if seen >= maxAppearances {
+		return nil
+	}
+	return models.AppendToSessionQueue(h.DB, session.ID, cardID)
+}
+
+// firstMissPerCard keeps one row per card for the summary's missed list.
+// Again brings a card back within the session, so one card can be missed up
+// to maxAppearances times; listing each miss would repeat it. The first miss
+// is kept, with the answer that was first given.
+func firstMissPerCard(answers []models.SessionAnswer) []models.SessionAnswer {
+	seen := make(map[int64]bool, len(answers))
+	var out []models.SessionAnswer
+	for _, a := range answers {
+		if seen[a.CardID] {
+			continue
+		}
+		seen[a.CardID] = true
+		out = append(out, a)
+	}
+	return out
+}
+
+// formatGap renders a gap in days the way the rating buttons show it.
+func formatGap(days int) string {
+	switch {
+	case days < 30:
+		return fmt.Sprintf("%dd", days)
+	case days < 365:
+		return fmt.Sprintf("%d mo", (days+15)/30)
+	default:
+		return fmt.Sprintf("%.1f y", float64(days)/365)
+	}
+}
+
+// gapLabels previews the gap each rating would give this card.
+func gapLabels(card models.Card) [4]string {
+	gaps := srs.Preview(srs.CardState{Interval: card.Interval, Ease: card.Ease, Repetitions: card.Repetitions})
+	var labels [4]string
+	for i, g := range gaps {
+		labels[i] = formatGap(g)
+	}
+	return labels
 }
 
 func (h *Handler) SubmitAnswer(c *gin.Context) {
@@ -255,6 +319,10 @@ func (h *Handler) SubmitAnswer(c *gin.Context) {
 	state := srs.CardState{Interval: card.Interval, Ease: card.Ease, Repetitions: card.Repetitions}
 	newState, dueDate := srs.Update(state, rating)
 	models.UpdateCardSRS(h.DB, cardID, newState.Interval, newState.Ease, newState.Repetitions, dueDate)
+
+	if err := h.requeueIfAgain(session, cardID, rating); err != nil {
+		log.Printf("SubmitAnswer: requeue card %d: %v", cardID, err)
+	}
 
 	if err := models.AdvanceSession(h.DB, session.ID, isCorrect); err != nil {
 		c.String(http.StatusInternalServerError, "Failed to advance session")
@@ -322,7 +390,8 @@ func (h *Handler) SessionSummary(c *gin.Context) {
 	wrong := session.Total - session.Correct
 	var missedCards []models.SessionAnswer
 	if wrong > 0 {
-		missedCards, _ = models.GetSessionAnswers(h.DB, session.ID, true)
+		missed, _ := models.GetSessionAnswers(h.DB, session.ID, true)
+		missedCards = firstMissPerCard(missed)
 	}
 
 	var dueTomorrow int

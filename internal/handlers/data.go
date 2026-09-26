@@ -56,8 +56,11 @@ type SessionData struct {
 	Empty    bool
 	// NextDue is when an empty SRS deck's first card falls due; zero when
 	// the deck has no cards.
-	NextDue    time.Time
-	MCOptions  []string
+	NextDue   time.Time
+	MCOptions []string
+	// Gaps labels each rating button (indexed by srs rating) with when the
+	// card would come back, e.g. "2d".
+	Gaps       [4]string
 	Feedback   bool
 	Answer     models.SessionAnswer
 	AnswerCard models.Card

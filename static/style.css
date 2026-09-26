@@ -419,6 +419,22 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--blue); }
 }
 .form-error::before { content: "! "; font-weight: 700; }
 
+/* ── Rating buttons: the gap each one gives sits under it ── */
+.rating-row {
+    display: flex;
+    justify-content: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+    margin-top: var(--sp-4);
+}
+.rating-choice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-1);
+}
+.rating-gap { font-size: var(--fs-xs); color: var(--muted); }
+
 /* ── Study-mode picker: one option per row, description under the name ── */
 .mode-picker { display: flex; flex-direction: column; gap: var(--sp-3); }
 .mode-picker .mode-option {

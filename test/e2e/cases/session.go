@@ -231,9 +231,11 @@ func SummaryMissedCards(t *testing.T) {
 
 	actions.StartMCSession(t, page, deckURL)
 
-	// Answer every card wrong, clicking through each feedback screen.
+	// Answer every card wrong, clicking through each feedback screen. A miss
+	// brings the card back, up to 3 appearances each, so the session runs to
+	// three times the deck.
 	var firstFront, firstClicked string
-	for range configuration.MaxClickLoop {
+	for range len(answers)*3 + 5 {
 		if strings.Contains(page.URL(), "summary") {
 			break
 		}
@@ -261,6 +263,10 @@ func SummaryMissedCards(t *testing.T) {
 	}
 	if !strings.Contains(body, firstClicked) {
 		t.Errorf("missed-cards table missing given answer %q", firstClicked)
+	}
+	// Each card was missed three times; it must still be listed once.
+	if n := strings.Count(body, firstFront); n != 1 {
+		t.Errorf("missed-cards table lists %q %d times, want once", firstFront, n)
 	}
 }
 

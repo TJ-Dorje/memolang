@@ -96,6 +96,8 @@ func Update(s CardState, rating int) (CardState, time.Time)
 
 After calling `Update`, persist the result with `models.UpdateCardSRS(...)`.
 
+It is SM-2 with Anki's reading of the buttons: Hard is a *pass* (slow growth), and Again < Hard < Good < Easy always give strictly increasing gaps. `srs.Preview(state)` returns the four gaps without changing anything; the study screen shows them under the buttons, so `Update` must take its numbers from `Preview`. Again also re-queues the card at the end of the session (max 3 appearances per card).
+
 ### Database schema (7 tables)
 
 - `users` — email (UNIQUE, `COLLATE NOCASE`), password_hash (bcrypt; empty is reserved for future OAuth-only accounts), display_name (optional; `User.Name()` falls back to email)
