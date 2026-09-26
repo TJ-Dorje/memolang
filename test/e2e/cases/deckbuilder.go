@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"memolang/test/e2e/configuration"
 	"memolang/test/e2e/helpers"
 	"memolang/test/e2e/helpers/components"
 
@@ -178,5 +179,55 @@ func DeckBuilderStartOver(t *testing.T) {
 	// The greeting is page text, so it is always there.
 	if n := components.CountLocators(t, page, ".chat-assistant"); n != 1 {
 		t.Errorf("assistant turns after Start Over = %d, want just the greeting", n)
+	}
+}
+
+// DeckBuilderUnreadablePlan: a plan block the parser can't use must say so
+// and leave the fallback available, not silently show nothing.
+func DeckBuilderUnreadablePlan(t *testing.T) {
+	page, email := freshUser(t, "builderbadplan")
+	useFakeLLM(t, email)
+	components.NavigateTo(t, page, "/decks/new/assistant")
+
+	fill(t, page, "textarea[name=question]", "German, "+helpers.FakeBadPlanTrigger)
+	click(t, page, ".chat-form button:has-text('Send')")
+	components.WaitForURL(t, page, "**/decks/new/assistant")
+	components.NavigateTo(t, page, "/decks/new/assistant")
+
+	if note := textOf(t, page, ".plan-note"); !strings.Contains(note, "couldn't be read") {
+		t.Errorf("note = %q, want the unreadable-plan note", note)
+	}
+	if text := textOf(t, page, ".chat-assistant:last-child .chat-text"); strings.Contains(text, "{") {
+		t.Errorf("broken plan block shown as text: %q", text)
+	}
+	if n := components.CountLocators(t, page, "button:has-text('Create Deck Plan')"); n != 1 {
+		t.Error("fallback not offered after an unreadable plan")
+	}
+}
+
+// DeckBuilderShowsProviderError: a server that answers the chat route with
+// 200 and a JSON error (LM Studio behind a base URL missing /v1) used to
+// produce an empty "successful" reply. It must show as an error pointing at
+// the provider settings — and fail Test Connection too.
+func DeckBuilderShowsProviderError(t *testing.T) {
+	page, email := freshUser(t, "builderbroken")
+	useFakeLLMAt(t, email, configuration.FakeLLMURL+helpers.FakeBrokenPrefix)
+	components.NavigateTo(t, page, "/decks/new/assistant")
+
+	fill(t, page, "textarea[name=question]", "German")
+	click(t, page, ".chat-form button:has-text('Send')")
+	components.WaitForURL(t, page, "**/decks/new/assistant")
+	// The failure is immediate, so this may be the live stream or the stored
+	// reply; both must show the error.
+	components.NavigateTo(t, page, "/decks/new/assistant")
+	if msg := textOf(t, page, ".chat-error"); !strings.Contains(msg, "AI Provider") {
+		t.Errorf("error = %q, want a pointer to the AI Provider settings", msg)
+	}
+
+	components.NavigateTo(t, page, "/profile/ai")
+	click(t, page, "button:has-text('Test Connection')")
+	components.WaitForURL(t, page, "**/profile/ai")
+	if flash := components.GetFlash(t, page); !strings.Contains(flash, "Connection failed") {
+		t.Errorf("Test Connection flash = %q, want a failure", flash)
 	}
 }

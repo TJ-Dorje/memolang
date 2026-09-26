@@ -16,6 +16,7 @@ type openAIStreamChunk struct {
 		Delta struct {
 			Content string `json:"content"`
 		} `json:"delta"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Error *struct {
 		Message string `json:"message"`
@@ -70,10 +71,17 @@ func (c *openAICompat) Chat(ctx context.Context, req ChatRequest, onToken TokenF
 		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 200))
 		return "", fmt.Errorf("api error (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
+	if err := requireEventStream(resp); err != nil {
+		return "", err
+	}
 
+	// A stream is complete at [DONE], or at a finish_reason for servers that
+	// end the connection without sending [DONE].
 	var reply strings.Builder
+	completed := false
 	err = readSSE(resp.Body, func(_, data string) error {
 		if data == "[DONE]" {
+			completed = true
 			return errStreamDone
 		}
 		var chunk openAIStreamChunk
@@ -83,15 +91,21 @@ func (c *openAICompat) Chat(ctx context.Context, req ChatRequest, onToken TokenF
 		if chunk.Error != nil {
 			return fmt.Errorf("api error: %s", chunk.Error.Message)
 		}
-		if len(chunk.Choices) == 0 || chunk.Choices[0].Delta.Content == "" {
-			return nil // role-only or keep-alive chunk
+		if len(chunk.Choices) == 0 {
+			return nil // keep-alive chunk
+		}
+		if chunk.Choices[0].FinishReason != "" {
+			completed = true
 		}
 		text := chunk.Choices[0].Delta.Content
+		if text == "" {
+			return nil // role-only or finish chunk
+		}
 		reply.WriteString(text)
 		return onToken(text)
 	})
 	if err != nil {
 		return reply.String(), err
 	}
-	return reply.String(), nil
+	return finishStream(reply.String(), completed)
 }

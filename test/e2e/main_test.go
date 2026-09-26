@@ -94,6 +94,8 @@ func TestE2E(t *testing.T) {
 		t.Run("DeckBuilderPlanInChat", cases.DeckBuilderPlanInChat)
 		t.Run("DeckBuilderNewerPlanSupersedes", cases.DeckBuilderNewerPlanSupersedes)
 		t.Run("DeckBuilderFallbackPlan", cases.DeckBuilderFallbackPlan)
+		t.Run("DeckBuilderUnreadablePlan", cases.DeckBuilderUnreadablePlan)
+		t.Run("DeckBuilderShowsProviderError", cases.DeckBuilderShowsProviderError)
 		t.Run("DeckBuilderNeedsProvider", cases.DeckBuilderNeedsProvider)
 		t.Run("OldAIFormLeadsToAssistant", cases.OldAIFormLeadsToAssistant)
 		t.Run("DeckBuilderStartOver", cases.DeckBuilderStartOver)

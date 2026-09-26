@@ -22,10 +22,9 @@
 {{end}}
 
 {{template "_chat_open" .Data.ChatData}}
-{{end}}
+{{- end}}
 
-{{define "tutor_bottom"}}
-{{template "_chat_close" .Data.ChatData}}
+{{define "tutor_bottom"}}{{template "_chat_close" .Data.ChatData}}
 
 {{if .Data.Configured}}
 <form method="POST" action="/cards/{{.Data.Card.ID}}/tutor" class="chat-form">

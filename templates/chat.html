@@ -16,22 +16,26 @@
     {{range .Messages}}
     <div class="chat-msg chat-{{.Role}}">
         <div class="chat-role">{{if eq .Role "user"}}You{{else}}{{$.AssistantName}}{{end}}</div>
-        <div class="chat-text">{{.Text}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Ask again.</span>{{end}}</div>
+        <div class="chat-text">{{.Text}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Check <a href="/profile/ai">Profile → AI Provider</a>, then ask again.</span>{{end}}</div>
         {{with .Plan}}{{template "_plan_card" .}}{{end}}
+        {{if .PlanUnreadable}}{{template "_plan_unreadable"}}{{end}}
     </div>
     {{end}}
     {{if .Streaming}}
     <div class="chat-msg chat-assistant chat-streaming">
         <div class="chat-role">{{.AssistantName}}</div>
-        <div class="chat-text">{{/* streamed text continues here */}}
-    {{end}}
-{{end}}
+        {{/* The streamed text continues right after this tag, so no
+             whitespace may follow it: the element is pre-wrap. */}}
+        <div class="chat-text">
+    {{- end}}
+{{- end}}
 
-{{define "_chat_close"}}
-    {{/* chat-done lets CSS stop the cursor: the streaming element's class
-         was already sent and can't be changed, but content can be added. */}}
-    {{if .Streaming}}<span class="chat-done"></span></div>
+{{/* chat-done lets CSS stop the cursor: the streaming element's class was
+     already sent and can't be changed, but content can be added. It must be
+     the very first thing written, still inside the pre-wrap text element. */}}
+{{define "_chat_close"}}{{if .Streaming}}<span class="chat-done"></span></div>
         {{with .StreamedPlan}}{{template "_plan_card" .}}{{end}}
+        {{if .StreamedPlanUnreadable}}{{template "_plan_unreadable"}}{{end}}
     </div>{{end}}
 </div>
 {{end}}
@@ -56,5 +60,11 @@
     {{else}}
     <div class="plan-note">Replaced by a newer plan below.</div>
     {{end}}
+</div>
+{{end}}
+
+{{define "_plan_unreadable"}}
+<div class="plan-card plan-superseded">
+    <div class="plan-note">The assistant's plan couldn't be read. Press <strong>Create Deck Plan</strong>, or ask it to repeat the plan.</div>
 </div>
 {{end}}

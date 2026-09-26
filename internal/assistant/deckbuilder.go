@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"memolang/internal/ai"
@@ -136,14 +138,22 @@ func parseDeckSpec(raw string) (DeckSpec, error) {
 		return DeckSpec{}, fmt.Errorf("no JSON object in the summary (got %.200q)", raw)
 	}
 
-	var spec DeckSpec
-	if err := json.Unmarshal([]byte(raw[start:end+1]), &spec); err != nil {
+	// Decoded loosely, then coerced field by field: models write "count": "20"
+	// or leave a trailing comma, and a strict decode into DeckSpec turned
+	// either into no plan at all.
+	object := trailingComma.ReplaceAllString(raw[start:end+1], "$1")
+	var fields map[string]any
+	if err := json.Unmarshal([]byte(object), &fields); err != nil {
 		return DeckSpec{}, fmt.Errorf("parse summary: %w (got %.200q)", err, raw)
 	}
 
-	spec.Name = strings.TrimSpace(spec.Name)
-	spec.Language = strings.TrimSpace(spec.Language)
-	spec.Prompt = strings.TrimSpace(spec.Prompt)
+	spec := DeckSpec{
+		Name:     looseString(fields["name"]),
+		Language: looseString(fields["language"]),
+		Prompt:   looseString(fields["prompt"]),
+		Count:    looseInt(fields["count"]),
+		Mode:     strings.ToLower(looseString(fields["mode"])),
+	}
 
 	if spec.Count == 0 {
 		spec.Count = defaultDeckCards
@@ -162,4 +172,39 @@ func parseDeckSpec(raw string) (DeckSpec, error) {
 // separate count parameter.
 func (spec DeckSpec) GenerationPrompt() string {
 	return fmt.Sprintf("%s\n\nGenerate %d cards.", spec.Prompt, spec.Count)
+}
+
+// trailingComma matches a comma before a closing brace or bracket, which
+// JSON forbids and models often write.
+var trailingComma = regexp.MustCompile(`,\s*([}\]])`)
+
+// looseString reads a JSON value as text: strings as-is, numbers and
+// booleans formatted, anything else empty.
+func looseString(v any) string {
+	switch v := v.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case float64, bool:
+		return fmt.Sprint(v)
+	}
+	return ""
+}
+
+// looseInt reads a JSON number, or a string starting with one ("20",
+// "20 cards"); 0 when there is none, which parseDeckSpec turns into the
+// default.
+func looseInt(v any) int {
+	switch v := v.(type) {
+	case float64:
+		return int(v)
+	case string:
+		digits := strings.TrimSpace(v)
+		end := 0
+		for end < len(digits) && digits[end] >= '0' && digits[end] <= '9' {
+			end++
+		}
+		n, _ := strconv.Atoi(digits[:end])
+		return n
+	}
+	return 0
 }

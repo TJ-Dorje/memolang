@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 
 	"memolang/internal/ai"
 	"memolang/internal/assistant"
@@ -48,12 +49,13 @@ func (h *Handler) loadChat(c *gin.Context, conversationID int64) (ChatData, erro
 func messageViews(msgs []models.ConversationMessage) []ChatMessageView {
 	views := make([]ChatMessageView, len(msgs))
 	for i, m := range msgs {
-		views[i] = ChatMessageView{ID: m.ID, Role: m.Role, Text: m.Content, Status: m.Status}
+		views[i] = ChatMessageView{ID: m.ID, Role: m.Role, Text: strings.TrimSpace(m.Content), Status: m.Status}
 		if m.Role != "assistant" {
 			continue
 		}
-		text, spec := assistant.ExtractDeckPlan(m.Content)
+		text, spec, planErr := assistant.ExtractDeckPlan(m.Content)
 		views[i].Text = text
+		views[i].PlanUnreadable = planErr != nil
 		if spec != nil {
 			views[i].Plan = &PlanCard{MessageID: m.ID, Spec: *spec}
 		}
@@ -105,9 +107,12 @@ func (h *Handler) renderChat(c *gin.Context, full, top, bottom string, pd PageDa
 	c.Writer.Flush()
 
 	// Model output is untrusted: every chunk is HTML-escaped before it is
-	// written, exactly as the template would escape it. The plan filter
-	// holds back a deck plan block, which is shown as a card instead.
-	var filter assistant.PlanFilter
+	// written, exactly as the template would escape it. The plan filter holds
+	// back a deck plan block, which is shown as a card instead; the trim
+	// filter keeps the model's leading and trailing blank lines out of the
+	// pre-wrap text, matching the trimmed text of a stored reply.
+	var plans assistant.PlanFilter
+	var trim assistant.TrimFilter
 	write := func(text string) error {
 		if text == "" {
 			return nil
@@ -119,23 +124,27 @@ func (h *Handler) renderChat(c *gin.Context, full, top, bottom string, pd PageDa
 		return nil
 	}
 	found, err := h.Assistant.Broker.Follow(c.Request.Context(), assistant.ReplyKey(reply.ID), func(chunk string) error {
-		return write(filter.Write(chunk))
+		return write(trim.Write(plans.Write(chunk)))
 	})
 
 	switch {
 	case !found:
 		// Nothing is producing this reply: the server restarted mid-reply.
-		text, _ := assistant.ExtractDeckPlan(reply.Content)
+		text, _, _ := assistant.ExtractDeckPlan(reply.Content)
 		write(text)
 		if err := h.Assistant.MarkInterrupted(reply); err != nil {
 			log.Printf("renderChat: mark interrupted: %v", err)
 		}
 		c.Writer.WriteString(`<span class="chat-error">The reply was interrupted. Ask again.</span>`)
 	case err != nil:
-		write(filter.Flush())
-		c.Writer.WriteString(`<span class="chat-error">The assistant could not finish this reply. Ask again.</span>`)
+		write(trim.Write(plans.Flush()))
+		// The live reason is shown (escaped) because it is usually actionable
+		// — most often a wrong base URL. It is not stored; a reload shows the
+		// generic line.
+		c.Writer.WriteString(`<span class="chat-error">The assistant could not reply: ` +
+			template.HTMLEscapeString(err.Error()) + `. Check <a href="/profile/ai">Profile → AI Provider</a>, then ask again.</span>`)
 	default:
-		write(filter.Flush())
+		write(trim.Write(plans.Flush()))
 		h.attachStreamedPlan(c, chat, reply)
 	}
 
@@ -157,7 +166,9 @@ func (h *Handler) attachStreamedPlan(c *gin.Context, chat *ChatData, reply model
 		if m.ID != reply.ID {
 			continue
 		}
-		if _, spec := assistant.ExtractDeckPlan(m.Content); spec != nil {
+		_, spec, planErr := assistant.ExtractDeckPlan(m.Content)
+		chat.StreamedPlanUnreadable = planErr != nil
+		if spec != nil {
 			chat.StreamedPlan = &PlanCard{MessageID: m.ID, Spec: *spec, Current: true}
 			chat.HasPlan = true
 		}

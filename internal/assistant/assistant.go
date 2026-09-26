@@ -125,6 +125,7 @@ func (s *Service) generate(provider ai.Provider, req ai.ChatRequest, replyID int
 	if dbErr := models.FinishConversationMessage(s.DB, replyID, text, status); dbErr != nil {
 		log.Printf("assistant: saving reply %d: %v", replyID, dbErr)
 	}
+	logUnreadablePlan(replyID, text)
 	s.Broker.Finish(key, err)
 }
 

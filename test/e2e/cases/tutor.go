@@ -39,13 +39,19 @@ func tutorUser(t *testing.T, prefix string, configured bool) (playwright.Page, s
 // runs.
 func useFakeLLM(t *testing.T, email string) {
 	t.Helper()
+	useFakeLLMAt(t, email, configuration.FakeLLMURL)
+}
+
+// useFakeLLMAt points the user's AI provider at baseURL on the fake server.
+func useFakeLLMAt(t *testing.T, email, baseURL string) {
+	t.Helper()
 	u, err := models.GetUserByEmail(configuration.DB, email)
 	if err != nil || u == nil {
 		t.Fatalf("look up %s: %v", email, err)
 	}
 	for key, value := range map[string]string{
 		"llm.provider": "custom",
-		"llm.base_url": configuration.FakeLLMURL,
+		"llm.base_url": baseURL,
 		"llm.model":    "fake-model",
 	} {
 		if err := models.SetSetting(configuration.DB, u.ID, key, value); err != nil {
@@ -94,6 +100,7 @@ func TutorStreamsReply(t *testing.T) {
 	}
 
 	waitAttached(t, page, ".chat-done")
+	assertNoEdgeWhitespace(t, page, ".chat-streaming .chat-text")
 	reply := textOf(t, page, ".chat-streaming .chat-text")
 	if !strings.Contains(reply, "You asked: Explain this word") {
 		t.Errorf("reply = %q, want the full streamed text", reply)
@@ -104,6 +111,7 @@ func TutorStreamsReply(t *testing.T) {
 	if n := components.CountLocators(t, page, ".chat-streaming"); n != 0 {
 		t.Error("reply still marked as streaming after it finished")
 	}
+	assertNoEdgeWhitespace(t, page, ".chat-assistant .chat-text")
 	saved := textOf(t, page, ".chat-assistant .chat-text")
 	if !strings.Contains(saved, "<b>bold</b> stays text.") {
 		t.Errorf("saved reply = %q, want the model's markup shown as text", saved)
@@ -189,4 +197,20 @@ func TutorLinkAfterReveal(t *testing.T) {
 	}
 	click(t, page, ".tutor-link")
 	components.WaitForURL(t, page, "**/tutor")
+}
+
+// assertNoEdgeWhitespace checks a reply's raw text has no leading or
+// trailing whitespace. Replies render with white-space: pre-wrap, so any
+// there shows as empty lines — from the model (Qwen3 starts with blank
+// lines) or from template whitespace inside the element. textOf trims, so
+// it cannot see this.
+func assertNoEdgeWhitespace(t *testing.T, page playwright.Page, selector string) {
+	t.Helper()
+	raw, err := page.Locator(selector).First().TextContent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw != strings.TrimSpace(raw) {
+		t.Errorf("%s has edge whitespace, which pre-wrap renders as blank lines: %q", selector, raw)
+	}
 }

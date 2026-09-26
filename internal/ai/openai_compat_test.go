@@ -117,9 +117,27 @@ func TestOpenAICompat_Ping(t *testing.T) {
 		{
 			name: "Success",
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"data":[{"id":"test-model"}]}`))
 			},
 			expectErr: false,
+		},
+		{
+			// A bare 200 used to count as success, which let a wrong base
+			// URL pass Test Connection.
+			name: "Empty 200 is not success",
+			serverHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
+			expectErr: true,
+		},
+		{
+			// LM Studio on a base URL missing /v1: every route answers 200
+			// with a JSON error.
+			name: "200 carrying an error is not success",
+			serverHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`{"error":"Unexpected endpoint or method. (` + r.Method + ` ` + r.URL.Path + `)"}`))
+			},
+			expectErr: true,
 		},
 		{
 			name: "Failure",

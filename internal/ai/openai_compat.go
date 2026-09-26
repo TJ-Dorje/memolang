@@ -107,11 +107,15 @@ func (c *openAICompat) GenerateCards(ctx context.Context, language, promptText s
 	return parseCards(chatResp.Choices[0].Message.Content)
 }
 
-// modelsResponse is the GET /models payload. Only the ids matter.
+// modelsResponse is the GET /models payload. Only the ids matter, plus an
+// error field: some servers answer an unknown route with 200 and a JSON
+// error, which must not read as "no models, all fine". It is raw because
+// servers disagree on its shape (a string or an object).
 type modelsResponse struct {
 	Data []struct {
 		ID string `json:"id"`
 	} `json:"data"`
+	Error json.RawMessage `json:"error"`
 }
 
 // Ping verifies the configuration without provoking inference.
@@ -167,6 +171,9 @@ func (c *openAICompat) listModels(ctx context.Context) ([]string, error) {
 	var parsed modelsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	if len(parsed.Error) > 0 && string(parsed.Error) != "null" {
+		return nil, fmt.Errorf("api error: %s", parsed.Error)
 	}
 
 	ids := make([]string, 0, len(parsed.Data))
@@ -235,5 +242,20 @@ func (c *openAICompat) pingCompletion(ctx context.Context) error {
 		return fmt.Errorf("api error (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
+	// A 200 is not enough: LM Studio answers an unknown route (a base URL
+	// missing /v1) with 200 and a JSON error. A real completion has choices.
+	var parsed struct {
+		Choices []json.RawMessage `json:"choices"`
+		Error   json.RawMessage   `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return fmt.Errorf("unexpected response: %w — check the base URL", err)
+	}
+	if len(parsed.Error) > 0 && string(parsed.Error) != "null" {
+		return fmt.Errorf("api error: %s — check the base URL", parsed.Error)
+	}
+	if len(parsed.Choices) == 0 {
+		return fmt.Errorf("the server returned no completion — check the base URL")
+	}
 	return nil
 }

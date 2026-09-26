@@ -123,6 +123,9 @@ type ChatData struct {
 	// StreamedPlan is the plan card of the reply that just finished
 	// streaming, filled in by renderChat for the bottom half of the page.
 	StreamedPlan *PlanCard
+	// StreamedPlanUnreadable: the reply that just streamed had a plan block
+	// that could not be used.
+	StreamedPlanUnreadable bool
 	// HasPlan reports that the conversation already has a deck plan, so the
 	// page offers Generate on its card rather than the Create deck fallback.
 	HasPlan bool
@@ -136,6 +139,8 @@ type ChatMessageView struct {
 	Text   string
 	Status string
 	Plan   *PlanCard
+	// PlanUnreadable: the reply carried a plan block that could not be used.
+	PlanUnreadable bool
 }
 
 // PlanCard is a deck plan shown in the chat. Only the newest plan can be

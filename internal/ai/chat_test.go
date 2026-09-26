@@ -208,6 +208,67 @@ data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}
 	}
 }
 
+// LM Studio on a base URL missing /v1 answers the chat route with 200 and a
+// JSON error. That used to parse as a stream with no events — an empty reply
+// saved as a success.
+func TestChatRejectsNonStreamSuccess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"error":"Unexpected endpoint or method. (POST /chat/completions)"}`))
+	}))
+	defer srv.Close()
+
+	for name, p := range map[string]Provider{
+		"openai":    newOpenAICompat(Config{BaseURL: srv.URL, Model: "m"}),
+		"anthropic": newAnthropic(Config{BaseURL: srv.URL, APIKey: "k", Model: "m"}),
+	} {
+		_, err := p.Chat(context.Background(), ChatRequest{}, collect(new([]string)))
+		if err == nil || !strings.Contains(err.Error(), "Unexpected endpoint") || !strings.Contains(err.Error(), "base URL") {
+			t.Errorf("%s: err = %v, want the server's error and a base URL hint", name, err)
+		}
+	}
+}
+
+func TestChatStreamCutShort(t *testing.T) {
+	// No [DONE] and no finish_reason: the connection just ended.
+	srv := sseServer(t, nil, "data: {\"choices\":[{\"delta\":{\"content\":\"Half a\"}}]}\n\n")
+	defer srv.Close()
+
+	p := newOpenAICompat(Config{BaseURL: srv.URL, Model: "m"})
+	reply, err := p.Chat(context.Background(), ChatRequest{}, collect(new([]string)))
+	if !errors.Is(err, errStreamCut) {
+		t.Errorf("err = %v, want errStreamCut", err)
+	}
+	if reply != "Half a" {
+		t.Errorf("reply = %q, want the partial text kept", reply)
+	}
+}
+
+func TestChatFinishReasonCompletesWithoutDone(t *testing.T) {
+	stream := `data: {"choices":[{"delta":{"content":"Hola"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+`
+	srv := sseServer(t, nil, stream)
+	defer srv.Close()
+
+	p := newOpenAICompat(Config{BaseURL: srv.URL, Model: "m"})
+	if reply, err := p.Chat(context.Background(), ChatRequest{}, collect(new([]string))); err != nil || reply != "Hola" {
+		t.Errorf("Chat = %q, %v; want a complete reply", reply, err)
+	}
+}
+
+func TestChatEmptyReply(t *testing.T) {
+	srv := sseServer(t, nil, "data: {\"choices\":[{\"delta\":{\"content\":\"\\n\\n\"}}]}\n\ndata: [DONE]\n\n")
+	defer srv.Close()
+
+	p := newOpenAICompat(Config{BaseURL: srv.URL, Model: "m"})
+	if _, err := p.Chat(context.Background(), ChatRequest{}, collect(new([]string))); !errors.Is(err, ErrEmptyReply) {
+		t.Errorf("err = %v, want ErrEmptyReply", err)
+	}
+}
+
 func TestReadSSEMultilineDataAndNoTrailingBlank(t *testing.T) {
 	var got []string
 	err := readSSE(strings.NewReader("data: a\ndata: b\n\ndata: last"), func(_, data string) error {

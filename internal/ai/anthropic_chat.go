@@ -74,8 +74,12 @@ func (a *anthropic) Chat(ctx context.Context, req ChatRequest, onToken TokenFunc
 		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 200))
 		return "", fmt.Errorf("api error (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
+	if err := requireEventStream(resp); err != nil {
+		return "", err
+	}
 
 	var reply strings.Builder
+	completed := false
 	err = readSSE(resp.Body, func(_, data string) error {
 		var ev anthropicStreamEvent
 		if err := json.Unmarshal([]byte(data), &ev); err != nil {
@@ -88,6 +92,7 @@ func (a *anthropic) Chat(ctx context.Context, req ChatRequest, onToken TokenFunc
 			}
 			return fmt.Errorf("api error")
 		case "message_stop":
+			completed = true
 			return errStreamDone
 		case "content_block_delta":
 			if ev.Delta.Type != "text_delta" || ev.Delta.Text == "" {
@@ -101,5 +106,5 @@ func (a *anthropic) Chat(ctx context.Context, req ChatRequest, onToken TokenFunc
 	if err != nil {
 		return reply.String(), err
 	}
-	return reply.String(), nil
+	return finishStream(reply.String(), completed)
 }

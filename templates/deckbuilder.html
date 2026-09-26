@@ -16,10 +16,9 @@ deck plan here — press <strong>Generate deck</strong> on it, or tell it what t
 {{end}}
 
 {{template "_chat_open" .Data.ChatData}}
-{{end}}
+{{- end}}
 
-{{define "deckbuilder_bottom"}}
-{{template "_chat_close" .Data.ChatData}}
+{{define "deckbuilder_bottom"}}{{template "_chat_close" .Data.ChatData}}
 
 {{if .Data.Configured}}
 <form method="POST" action="/decks/new/assistant" class="chat-form">

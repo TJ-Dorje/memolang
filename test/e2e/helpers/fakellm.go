@@ -81,8 +81,23 @@ func FakeLLMHandler() http.Handler {
 			streamChat(w, req.last())
 		}
 	})
+
+	// Like LM Studio behind a base URL missing /v1: every route answers 200
+	// with a JSON error instead of a 404.
+	mux.HandleFunc(FakeBrokenPrefix+"/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"error":"Unexpected endpoint or method. (%s %s)"}`, r.Method, strings.TrimPrefix(r.URL.Path, FakeBrokenPrefix))
+	})
 	return mux
 }
+
+// FakeBrokenPrefix, appended to the fake's URL, gives a base URL that
+// behaves like a misconfigured LM Studio.
+const FakeBrokenPrefix = "/broken"
+
+// FakeBadPlanTrigger in the learner's message makes the fake end its reply
+// with a plan block that is not valid JSON.
+const FakeBadPlanTrigger = "garbled"
 
 // writeCompletion answers in whichever shape the client asked for.
 func writeCompletion(w http.ResponseWriter, stream bool, content string) {
@@ -108,14 +123,24 @@ const FakePlanMode = "linear"
 
 func streamChat(w http.ResponseWriter, last string) {
 	w.Header().Set("Content-Type", "text/event-stream")
-	if strings.Contains(last, FakePlanTrigger) {
+	switch {
+	case strings.Contains(last, FakeBadPlanTrigger):
+		sendChunk(w, "Here is your plan.\n\n```deck\n{name: German, count: twenty}\n```")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+		w.(http.Flusher).Flush()
+		return
+	case strings.Contains(last, FakePlanTrigger):
 		streamPlan(w)
 		return
 	}
+	// Leading and trailing blank lines, as Qwen3 models produce, which the
+	// page must not render as empty space.
+	sendChunk(w, "\n\n")
 	sendChunk(w, FakeLLMFirstChunk)
 	time.Sleep(FakeLLMPause)
 	sendChunk(w, "You asked: "+last+" ")
 	sendChunk(w, "<b>bold</b> stays text.")
+	sendChunk(w, "\n\n")
 	fmt.Fprint(w, "data: [DONE]\n\n")
 	w.(http.Flusher).Flush()
 }
@@ -131,7 +156,7 @@ func streamPlan(w http.ResponseWriter) {
 	// The pause keeps the reply in progress when the page loads, so the plan
 	// really streams through the page's filter rather than being read back
 	// finished from the database.
-	sendChunk(w, "Here's your deck — check the plan and press Generate deck.\n\n")
+	sendChunk(w, "\nHere's your deck — check the plan and press Generate deck.\n\n")
 	time.Sleep(FakeLLMPause)
 	for _, chunk := range []string{"``", "`de", "ck\n", string(spec), "\n```"} {
 		sendChunk(w, chunk)

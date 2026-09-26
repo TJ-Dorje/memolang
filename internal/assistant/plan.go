@@ -3,6 +3,7 @@ package assistant
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -15,26 +16,49 @@ const PlanMarker = "```deck"
 // plan it carries, if any. Everything from the first PlanMarker on is hidden
 // — exactly what PlanFilter hid while the reply streamed, so a reload shows
 // the same text — and the plan is read from the last block, running to its
-// closing fence or the end of the reply if the model never closed it. plan
-// is nil when there is no block or it does not parse; the learner can still
-// ask for one with Create deck.
-func ExtractDeckPlan(content string) (visible string, plan *DeckSpec) {
+// closing fence or the end of the reply if the model never closed it.
+//
+// plan is nil when there is no block. err is set when there was a block but
+// it could not be used, so the page can say so instead of silently showing
+// no card; the learner can still ask for a plan with Create Deck Plan.
+func ExtractDeckPlan(content string) (visible string, plan *DeckSpec, err error) {
 	first := strings.Index(content, PlanMarker)
 	if first < 0 {
-		return content, nil
+		return strings.TrimSpace(content), nil, nil
 	}
-	visible = strings.TrimRight(content[:first], " \t\n")
+	visible = strings.TrimSpace(content[:first])
 
+	body := planBody(content)
+	spec, err := parseDeckSpec(body)
+	if err != nil {
+		return visible, nil, err
+	}
+	if spec.Language == "" || spec.Prompt == "" {
+		return visible, nil, fmt.Errorf("plan is missing its language or topic")
+	}
+	return visible, &spec, nil
+}
+
+// planBody is the text of the last plan block, up to its closing fence.
+func planBody(content string) string {
 	last := strings.LastIndex(content, PlanMarker)
 	body := content[last+len(PlanMarker):]
 	if end := strings.Index(body, "```"); end >= 0 {
 		body = body[:end]
 	}
-	spec, err := parseDeckSpec(body)
-	if err != nil || spec.Language == "" || spec.Prompt == "" {
-		return visible, nil
+	return body
+}
+
+// logUnreadablePlan records a plan block that could not be used, with what
+// the model actually wrote, so a model's formatting habits can be seen in
+// the server log. Called once per reply, when it finishes.
+func logUnreadablePlan(messageID int64, content string) {
+	if !strings.Contains(content, PlanMarker) {
+		return
 	}
-	return visible, &spec
+	if _, _, err := ExtractDeckPlan(content); err != nil {
+		log.Printf("assistant: reply %d has an unreadable deck plan (%v): %.500q", messageID, err, planBody(content))
+	}
 }
 
 // FormatDeckPlan renders a plan as a block ExtractDeckPlan reads back, for
@@ -87,4 +111,32 @@ func (f *PlanFilter) Flush() string {
 	held := f.held
 	f.held = ""
 	return held
+}
+
+// TrimFilter trims a streaming reply the way the page trims a stored one:
+// leading whitespace is dropped, and trailing whitespace is held back until
+// more text follows it, then dropped at the end. Replies are shown with
+// white-space: pre-wrap, so a model's leading blank lines (Qwen3's empty
+// <think></think> leaves "\n\n") or the blank lines before a plan block
+// would otherwise render as empty space.
+type TrimFilter struct {
+	started bool
+	held    string
+}
+
+const space = " \t\r\n"
+
+// Write returns the part of chunk that is safe to show now.
+func (f *TrimFilter) Write(chunk string) string {
+	if !f.started {
+		chunk = strings.TrimLeft(chunk, space)
+		if chunk == "" {
+			return ""
+		}
+		f.started = true
+	}
+	text := f.held + chunk
+	shown := strings.TrimRight(text, space)
+	f.held = text[len(shown):]
+	return shown
 }
