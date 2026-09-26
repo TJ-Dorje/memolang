@@ -1,8 +1,9 @@
 {{/* Shared by the assistant's chat pages (tutor, deck builder); called with
      the page's ChatData. A reply that is still being generated streams
      between the two halves: _chat_open ends *inside* its text element, the
-     handler writes the text as it arrives (escaped), and _chat_close ends
-     it. See renderChat in internal/handlers/chat.go. */}}
+     handler writes the text as it arrives (escaped, with any deck plan block
+     held back), and _chat_close ends it and shows that reply's plan card.
+     See renderChat in internal/handlers/chat.go. */}}
 
 {{define "_chat_open"}}
 <div class="chat-thread">
@@ -15,13 +16,14 @@
     {{range .Messages}}
     <div class="chat-msg chat-{{.Role}}">
         <div class="chat-role">{{if eq .Role "user"}}You{{else}}{{$.AssistantName}}{{end}}</div>
-        <div class="chat-text">{{.Content}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Ask again.</span>{{end}}</div>
+        <div class="chat-text">{{.Text}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Ask again.</span>{{end}}</div>
+        {{with .Plan}}{{template "_plan_card" .}}{{end}}
     </div>
     {{end}}
     {{if .Streaming}}
     <div class="chat-msg chat-assistant chat-streaming">
         <div class="chat-role">{{.AssistantName}}</div>
-        <div class="chat-text">{{.Streaming.Content}}{{/* streamed text continues here */}}
+        <div class="chat-text">{{/* streamed text continues here */}}
     {{end}}
 {{end}}
 
@@ -29,6 +31,30 @@
     {{/* chat-done lets CSS stop the cursor: the streaming element's class
          was already sent and can't be changed, but content can be added. */}}
     {{if .Streaming}}<span class="chat-done"></span></div>
+        {{with .StreamedPlan}}{{template "_plan_card" .}}{{end}}
     </div>{{end}}
+</div>
+{{end}}
+
+{{/* A deck plan the assistant proposed. Only the newest can be generated;
+     the form carries just the message id, and the server reads the plan
+     back from the conversation. */}}
+{{define "_plan_card"}}
+<div class="plan-card{{if not .Current}} plan-superseded{{end}}">
+    <div class="plan-name">{{.Spec.Name}}</div>
+    <dl class="plan-facts">
+        <dt>Language</dt><dd>{{.Spec.Language}}</dd>
+        <dt>Cards</dt><dd>{{.Spec.Count}}</dd>
+        <dt>Study mode</dt><dd>{{if eq .Spec.Mode "linear"}}Linear{{else}}SRS{{end}}</dd>
+        <dt>Topic</dt><dd>{{.Spec.Prompt}}</dd>
+    </dl>
+    {{if .Current}}
+    <form method="POST" action="/decks/new/assistant/generate">
+        <input type="hidden" name="message_id" value="{{.MessageID}}">
+        <button class="btn btn-primary">Generate Deck</button>
+    </form>
+    {{else}}
+    <div class="plan-note">Replaced by a newer plan below.</div>
+    {{end}}
 </div>
 {{end}}

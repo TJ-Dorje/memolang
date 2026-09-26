@@ -66,8 +66,8 @@ func SRSDeckSaysWhenToComeBack(t *testing.T) {
 }
 
 // ModePickerExplainsBothModes: the descriptions are the only place the
-// difference is explained. The AI review form shares the same partial and is
-// checked in DeckBuilderInterviewToDeck.
+// difference is explained; deck plans made by the AI assistant state the mode
+// checked there too.
 func ModePickerExplainsBothModes(t *testing.T) {
 	page := components.NewPage(t)
 

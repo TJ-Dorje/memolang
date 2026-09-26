@@ -68,7 +68,7 @@ func (h *Handler) TutorPage(c *gin.Context) {
 	h.renderChat(c, "tutor.html", "tutor_top", "tutor_bottom", PageData{
 		Title: "Tutor — " + card.Front,
 		Flash: h.getFlash(c),
-		Data:  TutorData{ChatData: chat, Card: card, Deck: deck, Presets: tutorPresetList},
+		Data:  &TutorData{ChatData: chat, Card: card, Deck: deck, Presets: tutorPresetList},
 	})
 }
 

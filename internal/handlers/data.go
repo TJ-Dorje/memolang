@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"memolang/internal/ai"
+	"memolang/internal/assistant"
 	"memolang/internal/models"
 )
 
@@ -66,13 +67,13 @@ type SessionData struct {
 	AnswerCard models.Card
 }
 
-// AIFormData is the data payload for the AI card generation form.
+// AIFormData is a deck to generate, handed from the deck builder's Generate
+// button to the generation step through the pending store.
 type AIFormData struct {
 	Name     string
 	Language string
 	Prompt   string
 	Mode     string
-	Error    string
 }
 
 // SettingsData is the data payload for the settings page.
@@ -108,7 +109,7 @@ type SecurityData struct {
 // ChatData is what every assistant chat page shows: the finished messages,
 // the reply still streaming (if any), and whether a provider is set up.
 type ChatData struct {
-	Messages []models.ConversationMessage
+	Messages []ChatMessageView
 	// Streaming is the reply still being generated, written into the page as
 	// it arrives; nil when nothing is in progress.
 	Streaming  *models.ConversationMessage
@@ -118,10 +119,36 @@ type ChatData struct {
 	// Greeting, when set, is shown as the assistant's opening turn. It is
 	// page text, not a stored message.
 	Greeting string
+
+	// StreamedPlan is the plan card of the reply that just finished
+	// streaming, filled in by renderChat for the bottom half of the page.
+	StreamedPlan *PlanCard
+	// HasPlan reports that the conversation already has a deck plan, so the
+	// page offers Generate on its card rather than the Create deck fallback.
+	HasPlan bool
 }
 
-// ChatState exposes the embedded ChatData to the streaming helper.
-func (d ChatData) ChatState() ChatData { return d }
+// ChatMessageView is a stored message as the page shows it: a plan block is
+// taken out of the text and shown as a card instead.
+type ChatMessageView struct {
+	ID     int64
+	Role   string
+	Text   string
+	Status string
+	Plan   *PlanCard
+}
+
+// PlanCard is a deck plan shown in the chat. Only the newest plan can be
+// generated; older ones are shown as superseded.
+type PlanCard struct {
+	MessageID int64
+	Spec      assistant.DeckSpec
+	Current   bool
+}
+
+// ChatState exposes the embedded ChatData to the streaming helper, which
+// fills in StreamedPlan once the reply has finished.
+func (d *ChatData) ChatState() *ChatData { return d }
 
 // TutorData is the data payload for the tutor page.
 type TutorData struct {

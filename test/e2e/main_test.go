@@ -91,7 +91,9 @@ func TestE2E(t *testing.T) {
 		t.Run("EditDeck", cases.EditDeck)
 	})
 	t.Run("DeckBuilder", func(t *testing.T) {
-		t.Run("DeckBuilderInterviewToDeck", cases.DeckBuilderInterviewToDeck)
+		t.Run("DeckBuilderPlanInChat", cases.DeckBuilderPlanInChat)
+		t.Run("DeckBuilderNewerPlanSupersedes", cases.DeckBuilderNewerPlanSupersedes)
+		t.Run("DeckBuilderFallbackPlan", cases.DeckBuilderFallbackPlan)
 		t.Run("DeckBuilderNeedsProvider", cases.DeckBuilderNeedsProvider)
 		t.Run("OldAIFormLeadsToAssistant", cases.OldAIFormLeadsToAssistant)
 		t.Run("DeckBuilderStartOver", cases.DeckBuilderStartOver)

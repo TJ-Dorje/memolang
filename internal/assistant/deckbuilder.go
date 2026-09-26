@@ -17,8 +17,9 @@ import (
 const DeckBuilderGreeting = "Hi! Let's build a deck together. What language do you want to learn, and what do you want to use it for?"
 
 // DeckBuilderPrompt steers the interview. The model gathers what card
-// generation needs and says when it has enough; the learner decides when to
-// stop by pressing Create deck, which runs SummarizeDeck.
+// generation needs, then states the plan in a PlanMarker block, which the
+// page shows as a deck card with a Generate button. If it never does, the
+// learner can press Create deck, which runs SummarizeDeck instead.
 func DeckBuilderPrompt() string {
 	return `You are a friendly assistant inside MemoLang, a flashcard app, helping a learner design a new deck of vocabulary flashcards. The app has already greeted them with: "` + DeckBuilderGreeting + `" Their first message answers that.
 
@@ -26,11 +27,18 @@ Find out, one short question at a time:
 - the language they are learning;
 - why they are learning it, and their level (beginner, intermediate, advanced);
 - the topic or situation the cards should cover (e.g. ordering food, business emails, 100 most common verbs);
-- roughly how many cards they want (suggest 20 if they have no preference; at most 50).
+- roughly how many cards they want (suggest 20 if they have no preference; at most 50);
+- how they want to study it: "SRS" (spaced repetition — each session shows only the cards due that day, best for remembering long-term) or "Linear" (straight through the deck, new cards first, always something to study). Suggest SRS if they are unsure.
 
-Ask at most one question per reply, and skip anything they have already told you. Suggest concrete options when they are unsure. Once you know the language, the topic and a rough size, say briefly what the deck will contain and tell them they can press "Create deck" to review it — they can also keep refining it with you.
+Ask at most one question per reply, and skip anything they have already told you. Suggest concrete options when they are unsure. Keep every reply under about 60 words, in plain text without Markdown.
 
-Keep every reply under about 60 words. Plain text, no Markdown. You cannot create the deck yourself; the learner does that with the button.`
+When you know all five, reply with one short sentence inviting them to check the plan and press "Generate deck" (or tell you what to change), and end that reply with the plan in exactly this form:
+
+` + PlanMarker + `
+{"name": "short deck title, at most 40 characters", "language": "the language, in English", "prompt": "one paragraph telling a flashcard generator what to produce: topic, level, goal and any preferences", "count": 20, "mode": "srs"}
+` + "```" + `
+
+The app shows that block to the learner as a card with a Generate button — never mention JSON or the block itself. If they ask for changes afterwards, reply briefly and end with a new, complete block. Never write the block before you know all five. You cannot create the deck yourself; the learner does that with the button.`
 }
 
 // DeckSpec is what the interview produces: the fields the review form shows
@@ -40,6 +48,8 @@ type DeckSpec struct {
 	Language string `json:"language"`
 	Prompt   string `json:"prompt"`
 	Count    int    `json:"count"`
+	// Mode is the deck's study mode, "srs" or "linear".
+	Mode string `json:"mode"`
 }
 
 const (
@@ -54,12 +64,13 @@ var ErrNothingToSummarize = errors.New("the conversation is empty")
 const summaryPrompt = `You turn a conversation between a learner and a deck-design assistant into a specification for generating vocabulary flashcards.
 
 Output ONLY a JSON object, no other text:
-{"name": "...", "language": "...", "prompt": "...", "count": 20}
+{"name": "...", "language": "...", "prompt": "...", "count": 20, "mode": "srs"}
 
 - name: a short deck title, at most 40 characters, e.g. "Spanish — Ordering Food".
 - language: the language being learned, in English, e.g. "Spanish".
 - prompt: one paragraph telling a flashcard generator exactly what to produce: the topic or situation, the learner's level and goal, and any preferences they mentioned (formal/informal, regional variant, word types). Do not include the card count here.
-- count: the number of cards they asked for, 20 if they did not say, never more than 50.`
+- count: the number of cards they asked for, 20 if they did not say, never more than 50.
+- mode: "linear" if they chose to study straight through the deck, otherwise "srs".`
 
 // SummarizeDeck asks the model to turn the user's deck-builder conversation
 // into a DeckSpec. It is one ordinary (non-streamed) call; the page shows a
@@ -140,6 +151,9 @@ func parseDeckSpec(raw string) (DeckSpec, error) {
 	spec.Count = min(max(spec.Count, minDeckCards), maxDeckCards)
 	if spec.Name == "" && spec.Language != "" {
 		spec.Name = spec.Language + " deck"
+	}
+	if spec.Mode != "linear" {
+		spec.Mode = "srs"
 	}
 	return spec, nil
 }

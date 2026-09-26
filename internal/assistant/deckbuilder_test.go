@@ -29,7 +29,7 @@ func TestSummarizeDeck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SummarizeDeck: %v", err)
 	}
-	want := DeckSpec{Name: "Spanish — Travel", Language: "Spanish", Prompt: "Travel phrases for Mexico, beginner.", Count: 15}
+	want := DeckSpec{Name: "Spanish — Travel", Language: "Spanish", Prompt: "Travel phrases for Mexico, beginner.", Count: 15, Mode: "srs"}
 	if spec != want {
 		t.Errorf("spec = %+v, want %+v", spec, want)
 	}
@@ -59,10 +59,10 @@ func TestParseDeckSpecDefaultsAndClamps(t *testing.T) {
 		raw  string
 		want DeckSpec
 	}{
-		{`{"language":"German","prompt":"verbs"}`, DeckSpec{Name: "German deck", Language: "German", Prompt: "verbs", Count: 20}},
-		{`{"name":"x","language":"L","prompt":"p","count":500}`, DeckSpec{Name: "x", Language: "L", Prompt: "p", Count: 50}},
-		{`{"name":"x","language":"L","prompt":"p","count":1}`, DeckSpec{Name: "x", Language: "L", Prompt: "p", Count: 5}},
-		{`Sure! {"name":" y ","language":"L","prompt":"p","count":10} Hope that helps.`, DeckSpec{Name: "y", Language: "L", Prompt: "p", Count: 10}},
+		{`{"language":"German","prompt":"verbs"}`, DeckSpec{Name: "German deck", Language: "German", Prompt: "verbs", Count: 20, Mode: "srs"}},
+		{`{"name":"x","language":"L","prompt":"p","count":500}`, DeckSpec{Name: "x", Language: "L", Prompt: "p", Count: 50, Mode: "srs"}},
+		{`{"name":"x","language":"L","prompt":"p","count":1}`, DeckSpec{Name: "x", Language: "L", Prompt: "p", Count: 5, Mode: "srs"}},
+		{`Sure! {"name":" y ","language":"L","prompt":"p","count":10} Hope that helps.`, DeckSpec{Name: "y", Language: "L", Prompt: "p", Count: 10, Mode: "srs"}},
 	} {
 		got, err := parseDeckSpec(tc.raw)
 		if err != nil {

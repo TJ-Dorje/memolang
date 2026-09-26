@@ -98,12 +98,44 @@ func writeCompletion(w http.ResponseWriter, stream bool, content string) {
 	})
 }
 
+// FakePlanTrigger in the learner's message makes the fake deck builder end
+// its reply with a deck plan block.
+const FakePlanTrigger = "ready"
+
+// FakePlanMode is the study mode in the fake assistant's plan, deliberately
+// not the default, to prove the plan's mode reaches the new deck.
+const FakePlanMode = "linear"
+
 func streamChat(w http.ResponseWriter, last string) {
 	w.Header().Set("Content-Type", "text/event-stream")
+	if strings.Contains(last, FakePlanTrigger) {
+		streamPlan(w)
+		return
+	}
 	sendChunk(w, FakeLLMFirstChunk)
 	time.Sleep(FakeLLMPause)
 	sendChunk(w, "You asked: "+last+" ")
 	sendChunk(w, "<b>bold</b> stays text.")
+	fmt.Fprint(w, "data: [DONE]\n\n")
+	w.(http.Flusher).Flush()
+}
+
+// streamPlan replies like a deck builder with everything it needs: a short
+// sentence, then the plan block — its opening marker split across chunks,
+// as a real stream may split it, so the page's filter is exercised.
+func streamPlan(w http.ResponseWriter) {
+	spec, _ := json.Marshal(map[string]any{
+		"name": FakeDeckName, "language": FakeDeckLanguage,
+		"prompt": FakeDeckPrompt, "count": FakeDeckCount, "mode": FakePlanMode,
+	})
+	// The pause keeps the reply in progress when the page loads, so the plan
+	// really streams through the page's filter rather than being read back
+	// finished from the database.
+	sendChunk(w, "Here's your deck — check the plan and press Generate deck.\n\n")
+	time.Sleep(FakeLLMPause)
+	for _, chunk := range []string{"``", "`de", "ck\n", string(spec), "\n```"} {
+		sendChunk(w, chunk)
+	}
 	fmt.Fprint(w, "data: [DONE]\n\n")
 	w.(http.Flusher).Flush()
 }

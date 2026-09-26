@@ -40,20 +40,9 @@ func (h *Handler) NewDeckForm(c *gin.Context) {
 		return
 	}
 
-	// The AI form is now only the review step of the deck builder: it is
-	// reached with a token holding the interview's summary (or a failed
-	// generation to retry). Without one, the assistant is where AI decks
-	// start.
-	form, ok := h.pendingAIForm(c.Query("token"))
-	if !ok {
-		c.Redirect(http.StatusSeeOther, "/decks/new/assistant")
-		return
-	}
-	h.render(c, http.StatusOK, "ai_form.html", PageData{
-		Title: "Review Your Deck",
-		Flash: h.getFlash(c),
-		Data:  form,
-	})
+	// The old AI form is gone: AI decks are designed with the assistant.
+	// Kept as a redirect for bookmarks.
+	c.Redirect(http.StatusSeeOther, deckBuilderURL)
 }
 
 // pendingAIForm restores a filled AI form by token. ok is false when the
@@ -70,37 +59,6 @@ func (h *Handler) pendingAIForm(token string) (AIFormData, bool) {
 	}
 	form, ok := v.(AIFormData)
 	return form, ok
-}
-
-func (h *Handler) CreateDeckAI(c *gin.Context) {
-	name := c.PostForm("name")
-	language := c.PostForm("language")
-	promptText := c.PostForm("prompt")
-	mode := c.PostForm("mode")
-	if mode == "" {
-		mode = "srs"
-	}
-
-	formData := AIFormData{
-		Name:     name,
-		Language: language,
-		Prompt:   promptText,
-		Mode:     mode,
-	}
-
-	log.Printf("CreateDeckAI: name=%q language=%q prompt=%q mode=%q", name, language, promptText, mode)
-
-	if name == "" || language == "" || promptText == "" {
-		formData.Error = "Deck name, language, and prompt are required"
-		h.render(c, http.StatusOK, "ai_form.html", PageData{
-			Title: "Review Your Deck",
-			Data:  formData,
-		})
-		return
-	}
-
-	token := h.storePending(formData)
-	c.Redirect(http.StatusSeeOther, "/decks/new-ai/processing?token="+token)
 }
 
 func (h *Handler) AIProcessing(c *gin.Context) {
@@ -144,22 +102,18 @@ func (h *Handler) AIExecute(c *gin.Context) {
 	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
 		log.Printf("AIExecute: LoadConfig failed: %v", err)
-		fd.Error = "Failed to load LLM settings: " + err.Error()
-		tok := h.storePending(fd)
-		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true&token="+tok)
+		h.redirectWithFlash(c, deckBuilderURL, "Failed to load LLM settings: "+err.Error())
 		return
 	}
 
 	provider, err := ai.New(cfg)
 	if err != nil {
 		log.Printf("AIExecute: ai.New failed: %v", err)
+		msg := "LLM configuration error: " + err.Error()
 		if errors.Is(err, ai.ErrNotConfigured) {
-			fd.Error = "No LLM provider configured. Set one up under Profile → AI Provider first."
-		} else {
-			fd.Error = "LLM configuration error: " + err.Error()
+			msg = "Set up an AI provider first: Profile → AI Provider."
 		}
-		tok := h.storePending(fd)
-		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true&token="+tok)
+		h.redirectWithFlash(c, deckBuilderURL, msg)
 		return
 	}
 
@@ -167,17 +121,14 @@ func (h *Handler) AIExecute(c *gin.Context) {
 	cards, err := provider.GenerateCards(c.Request.Context(), fd.Language, fd.Prompt)
 	if err != nil {
 		log.Printf("AIExecute: GenerateCards failed: %v", err)
-		fd.Error = "AI generation failed. You can retry."
-		tok := h.storePending(fd)
-		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true&token="+tok)
+		// The plan is still in the chat, so Generate deck can simply be pressed again.
+		h.redirectWithFlash(c, deckBuilderURL, "Card generation failed. Press Generate deck to try again.")
 		return
 	}
 
 	log.Printf("AIExecute: got %d cards", len(cards))
 	if len(cards) == 0 {
-		fd.Error = "AI returned no cards. Try a different prompt."
-		tok := h.storePending(fd)
-		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true&token="+tok)
+		h.redirectWithFlash(c, deckBuilderURL, "The AI returned no cards. Ask the assistant to adjust the plan, then generate again.")
 		return
 	}
 
