@@ -3,6 +3,10 @@
     <h1>{{.Title}}</h1>
 </div>
 
+{{/* The review step of the deck builder: pre-filled from the conversation
+     (or kept from a failed attempt), editable, nothing generated yet. */}}
+<p class="hint">The assistant filled this in from your conversation. Change anything, then generate the cards.</p>
+
 {{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}} <a href="/profile/ai">AI Provider</a></div>{{end}}{{end}}
 
 <form method="POST" action="/decks/new-ai">
@@ -30,7 +34,7 @@
 
     <div>
         <button type="submit" class="btn btn-primary">Generate Cards</button>
-        <a href="/decks/new" class="btn">Back</a>
+        <a href="/decks/new/assistant" class="btn">Back to the conversation</a>
     </div>
 </form>
 {{template "_footer" .}}

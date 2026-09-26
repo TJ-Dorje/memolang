@@ -31,6 +31,7 @@ var migrations = []migration{
 	{version: 3, file: "0003_deck_owners.sql", prepare: claimOrphanDecks},
 	{version: 4, file: "0004_display_name.sql"},
 	{version: 5, file: "0005_tutor.sql"},
+	{version: 6, file: "0006_conversations.sql"},
 }
 
 // authVersion is where a database created by the post-auth schema.sql, before

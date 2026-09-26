@@ -40,32 +40,36 @@ func (h *Handler) NewDeckForm(c *gin.Context) {
 		return
 	}
 
+	// The AI form is now only the review step of the deck builder: it is
+	// reached with a token holding the interview's summary (or a failed
+	// generation to retry). Without one, the assistant is where AI decks
+	// start.
+	form, ok := h.pendingAIForm(c.Query("token"))
+	if !ok {
+		c.Redirect(http.StatusSeeOther, "/decks/new/assistant")
+		return
+	}
 	h.render(c, http.StatusOK, "ai_form.html", PageData{
-		Title: "Generate Cards with AI",
+		Title: "Review Your Deck",
 		Flash: h.getFlash(c),
-		Data:  h.pendingAIForm(c.Query("token")),
+		Data:  form,
 	})
 }
 
-// pendingAIForm restores a half-filled AI form by token, falling back to a
-// fresh one when the token is absent, already consumed, or holds something
-// else. The pending map is shared with the CSV import flow, so the type
-// assertion has to be checked: an import token replayed here would otherwise
-// panic.
-func (h *Handler) pendingAIForm(token string) AIFormData {
-	fresh := AIFormData{Mode: "srs"}
+// pendingAIForm restores a filled AI form by token. ok is false when the
+// token is absent, already consumed, or holds something else. The pending map
+// is shared with the CSV import flow, so the type assertion has to be
+// checked: an import token replayed here would otherwise panic.
+func (h *Handler) pendingAIForm(token string) (AIFormData, bool) {
 	if token == "" {
-		return fresh
+		return AIFormData{}, false
 	}
 	v, ok := h.loadPending(token)
 	if !ok {
-		return fresh
+		return AIFormData{}, false
 	}
 	form, ok := v.(AIFormData)
-	if !ok {
-		return fresh
-	}
-	return form
+	return form, ok
 }
 
 func (h *Handler) CreateDeckAI(c *gin.Context) {
@@ -89,7 +93,7 @@ func (h *Handler) CreateDeckAI(c *gin.Context) {
 	if name == "" || language == "" || promptText == "" {
 		formData.Error = "Deck name, language, and prompt are required"
 		h.render(c, http.StatusOK, "ai_form.html", PageData{
-			Title: "Generate Cards with AI",
+			Title: "Review Your Deck",
 			Data:  formData,
 		})
 		return
@@ -105,9 +109,18 @@ func (h *Handler) AIProcessing(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/decks/new")
 		return
 	}
+	h.renderWaiting(c, "Generating...",
+		"Asking the AI to generate your cards…", "This may take a minute for large requests.",
+		"/decks/new-ai/execute?token="+token)
+}
+
+// renderWaiting shows the spinner page, which immediately navigates (meta
+// refresh, no JavaScript) to next: a slow GET that does the LLM work. The
+// browser keeps this page on screen until next responds.
+func (h *Handler) renderWaiting(c *gin.Context, title, message, sub, next string) {
 	h.render(c, http.StatusOK, "ai_processing.html", PageData{
-		Title: "Generating...",
-		Data:  map[string]string{"Token": token},
+		Title: title,
+		Data:  WaitingData{Message: message, Sub: sub, Next: next},
 	})
 }
 
@@ -120,12 +133,13 @@ func (h *Handler) AIExecute(c *gin.Context) {
 		return
 	}
 
-	v, ok := h.loadPending(token)
+	// Checked assertion: the pending map is shared with the CSV import flow,
+	// so a replayed import token must not panic here.
+	fd, ok := h.pendingAIForm(token)
 	if !ok {
-		c.Redirect(http.StatusSeeOther, "/decks/new?ai_mode=true")
+		c.Redirect(http.StatusSeeOther, "/decks/new/assistant")
 		return
 	}
-	fd := v.(AIFormData)
 
 	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
@@ -177,6 +191,14 @@ func (h *Handler) AIExecute(c *gin.Context) {
 		_, err := models.CreateCard(h.DB, deck.ID, card.Front, card.Back, card.Example, "")
 		if err != nil {
 			log.Printf("failed to insert card %q: %v", card.Front, err)
+		}
+	}
+
+	// The interview that designed this deck is finished; the next "Create
+	// with AI" starts a fresh one.
+	if convID, err := models.FindDeckBuilderConversation(h.DB, userID); err == nil && convID != 0 {
+		if err := models.DeleteConversation(h.DB, userID, convID); err != nil {
+			log.Printf("AIExecute: close deck builder conversation: %v", err)
 		}
 	}
 

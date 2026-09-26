@@ -1,0 +1,49 @@
+{{/* The deck-builder interview. Streams in two halves around the reply;
+     see templates/chat.html. */}}
+
+{{define "deckbuilder_top"}}
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Create a Deck with AI</h1>
+    <a href="/decks/new" class="btn btn-sm">← New deck</a>
+</div>
+
+<p class="hint">Tell the assistant what you want to learn. When it has enough, press
+<strong>Create deck</strong> — you'll review everything before any cards are made.</p>
+
+{{if not .Data.Configured}}
+<div class="form-error">The assistant needs an AI provider. Set one up under <a href="/profile/ai">Profile → AI Provider</a>.</div>
+{{end}}
+
+{{template "_chat_open" .Data.ChatData}}
+{{end}}
+
+{{define "deckbuilder_bottom"}}
+{{template "_chat_close" .Data.ChatData}}
+
+{{if .Data.Configured}}
+<form method="POST" action="/decks/new/assistant" class="chat-form">
+    <label for="question">Your answer</label>
+    <textarea id="question" name="question" rows="3"
+              placeholder="e.g. Spanish, for a trip to Mexico next spring"></textarea>
+    <div>
+        <button class="btn btn-primary">Send</button>
+    </div>
+</form>
+{{end}}
+
+{{if .Data.Messages}}
+<div class="btn-group deckbuilder-actions">
+    <form method="POST" action="/decks/new/assistant/review">
+        <button class="btn btn-primary">Create Deck</button>
+    </form>
+    <form method="POST" action="/decks/new/assistant/reset"
+          onsubmit="return confirm('Start the conversation over?')">
+        <button class="btn btn-sm">Start Over</button>
+    </form>
+</div>
+{{end}}
+{{template "_footer" .}}
+{{end}}
+
+{{template "deckbuilder_top" .}}{{template "deckbuilder_bottom" .}}

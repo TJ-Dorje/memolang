@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -12,44 +13,105 @@ import (
 // while the rest has not been sent yet.
 const FakeLLMPause = 1500 * time.Millisecond
 
-// FakeLLMFirstChunk opens every fake reply.
+// FakeLLMFirstChunk opens every fake chat reply.
 const FakeLLMFirstChunk = "Hola! "
 
-// FakeLLMHandler is an OpenAI-compatible chat endpoint that streams a canned
-// reply echoing the learner's last message, so e2e cases exercise the real
-// transport, broker and streaming page without a model. The reply includes
-// markup to prove it is rendered as text.
+// The deck spec the fake returns when asked to summarise a deck-builder
+// conversation, and the cards it returns when asked to generate them.
+const (
+	FakeDeckName     = "Spanish — Travel"
+	FakeDeckLanguage = "Spanish"
+	FakeDeckPrompt   = "Travel phrases for a beginner visiting Mexico."
+	FakeDeckCount    = 15
+)
+
+var FakeCards = []map[string]string{
+	{"front": "el billete", "back": "the ticket", "example": "Necesito un billete. (I need a ticket.)"},
+	{"front": "la playa", "back": "the beach", "example": "Vamos a la playa. (Let's go to the beach.)"},
+	{"front": "la cuenta", "back": "the bill", "example": "La cuenta, por favor. (The bill, please.)"},
+}
+
+type fakeRequest struct {
+	Stream   bool `json:"stream"`
+	Messages []struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	} `json:"messages"`
+}
+
+func (r fakeRequest) system() string {
+	if len(r.Messages) > 0 && r.Messages[0].Role == "system" {
+		return r.Messages[0].Content
+	}
+	return ""
+}
+
+func (r fakeRequest) last() string {
+	if n := len(r.Messages); n > 0 {
+		return r.Messages[n-1].Content
+	}
+	return ""
+}
+
+// FakeLLMHandler is an OpenAI-compatible chat endpoint for e2e cases, so they
+// exercise the real transports, broker and streaming pages without a model.
+// It recognises the app's three kinds of request by their system prompts:
+// card generation (JSON cards, not streamed), deck summarisation (a JSON
+// spec) and chat (a streamed reply echoing the learner, including markup to
+// prove it is rendered as text).
 func FakeLLMHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /chat/completions", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Messages []struct {
-				Role    string `json:"role"`
-				Content string `json:"content"`
-			} `json:"messages"`
-		}
+		var req fakeRequest
 		json.NewDecoder(r.Body).Decode(&req)
-		last := ""
-		if n := len(req.Messages); n > 0 {
-			last = req.Messages[n-1].Content
-		}
+		system := req.system()
 
-		w.Header().Set("Content-Type", "text/event-stream")
-		flusher := w.(http.Flusher)
-		send := func(text string) {
-			chunk, _ := json.Marshal(map[string]any{
-				"choices": []any{map[string]any{"delta": map[string]string{"content": text}}},
+		// Summary first: its prompt also mentions "a flashcard generator".
+		switch {
+		case strings.Contains(system, "specification for generating vocabulary flashcards"):
+			spec, _ := json.Marshal(map[string]any{
+				"name": FakeDeckName, "language": FakeDeckLanguage,
+				"prompt": FakeDeckPrompt, "count": FakeDeckCount,
 			})
-			fmt.Fprintf(w, "data: %s\n\n", chunk)
-			flusher.Flush()
+			writeCompletion(w, req.Stream, "```json\n"+string(spec)+"\n```")
+		case strings.Contains(system, "You are a flashcard generator"):
+			cards, _ := json.Marshal(FakeCards)
+			writeCompletion(w, req.Stream, string(cards))
+		default:
+			streamChat(w, req.last())
 		}
-
-		send(FakeLLMFirstChunk)
-		time.Sleep(FakeLLMPause)
-		send("You asked: " + last + " ")
-		send("<b>bold</b> stays text.")
-		fmt.Fprint(w, "data: [DONE]\n\n")
-		flusher.Flush()
 	})
 	return mux
+}
+
+// writeCompletion answers in whichever shape the client asked for.
+func writeCompletion(w http.ResponseWriter, stream bool, content string) {
+	if stream {
+		w.Header().Set("Content-Type", "text/event-stream")
+		sendChunk(w, content)
+		fmt.Fprint(w, "data: [DONE]\n\n")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"choices": []any{map[string]any{"message": map[string]string{"content": content}}},
+	})
+}
+
+func streamChat(w http.ResponseWriter, last string) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	sendChunk(w, FakeLLMFirstChunk)
+	time.Sleep(FakeLLMPause)
+	sendChunk(w, "You asked: "+last+" ")
+	sendChunk(w, "<b>bold</b> stays text.")
+	fmt.Fprint(w, "data: [DONE]\n\n")
+	w.(http.Flusher).Flush()
+}
+
+func sendChunk(w http.ResponseWriter, text string) {
+	chunk, _ := json.Marshal(map[string]any{
+		"choices": []any{map[string]any{"delta": map[string]string{"content": text}}},
+	})
+	fmt.Fprintf(w, "data: %s\n\n", chunk)
+	w.(http.Flusher).Flush()
 }

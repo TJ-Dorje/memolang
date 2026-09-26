@@ -74,28 +74,6 @@ func ClearAPIKeyField(t *testing.T, page playwright.Page) {
 	}
 }
 
-func SubmitAIForm(t *testing.T, page playwright.Page, name, language, prompt string) {
-	t.Helper()
-	if _, err := page.Goto(configuration.BaseURL + "/decks/new?ai_mode=true"); err != nil {
-		t.Fatal(err)
-	}
-	if err := components.FillInput(page, "input[name=name]", name); err != nil {
-		t.Fatal(err)
-	}
-	if err := components.FillInput(page, "input[name=language]", language); err != nil {
-		t.Fatal(err)
-	}
-	if err := components.FillInput(page, "textarea[name=prompt]", prompt); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := page.Evaluate("document.querySelector('main form').noValidate = true"); err != nil {
-		t.Fatal(err)
-	}
-	if err := components.ClickButton(page, "button:has-text('Generate Cards')"); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // TickClearAPIKey checks the "Clear saved key" box. It is only rendered when a
 // key is actually stored, so this doubles as an assertion that one is.
 func TickClearAPIKey(t *testing.T, page playwright.Page) {

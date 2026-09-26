@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"sync"
 
+	"memolang/internal/assistant"
 	"memolang/internal/models"
 	"memolang/internal/stream"
-	"memolang/internal/tutor"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -29,8 +29,8 @@ type PageData struct {
 }
 
 type Handler struct {
-	DB    *sql.DB
-	Tutor *tutor.Service
+	DB        *sql.DB
+	Assistant *assistant.Service
 	// HTML is the engine's template renderer, for pages written in parts
 	// (renderPart). It follows gin's mode, so templates still reload from
 	// disk in debug.
@@ -41,9 +41,9 @@ type Handler struct {
 
 func New(db *sql.DB, html render.HTMLRender) *Handler {
 	return &Handler{
-		DB:    db,
-		Tutor: tutor.New(db, stream.NewMemory()),
-		HTML:  html,
+		DB:        db,
+		Assistant: assistant.New(db, stream.NewMemory()),
+		HTML:      html,
 	}
 }
 

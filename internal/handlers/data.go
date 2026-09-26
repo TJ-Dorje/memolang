@@ -105,16 +105,43 @@ type SecurityData struct {
 	DeleteError   string
 }
 
-// TutorData is the data payload for the tutor page.
-type TutorData struct {
-	Card     models.Card
-	Deck     models.Deck
-	Messages []models.TutorMessage
+// ChatData is what every assistant chat page shows: the finished messages,
+// the reply still streaming (if any), and whether a provider is set up.
+type ChatData struct {
+	Messages []models.ConversationMessage
 	// Streaming is the reply still being generated, written into the page as
 	// it arrives; nil when nothing is in progress.
-	Streaming  *models.TutorMessage
+	Streaming  *models.ConversationMessage
 	Configured bool
-	Presets    []TutorPreset
+	// AssistantName labels the assistant's turns ("Tutor", "Assistant").
+	AssistantName string
+	// Greeting, when set, is shown as the assistant's opening turn. It is
+	// page text, not a stored message.
+	Greeting string
+}
+
+// ChatState exposes the embedded ChatData to the streaming helper.
+func (d ChatData) ChatState() ChatData { return d }
+
+// TutorData is the data payload for the tutor page.
+type TutorData struct {
+	ChatData
+	Card    models.Card
+	Deck    models.Deck
+	Presets []TutorPreset
+}
+
+// DeckBuilderData is the data payload for the deck-builder interview.
+type DeckBuilderData struct {
+	ChatData
+}
+
+// WaitingData is the data payload for the spinner page that hands over to a
+// slow GET.
+type WaitingData struct {
+	Message string
+	Sub     string
+	Next    string
 }
 
 // TutorPreset is a one-click question button.

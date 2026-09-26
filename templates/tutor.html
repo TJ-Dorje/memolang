@@ -1,8 +1,4 @@
-{{/* The tutor page comes in two halves so a reply can stream between them:
-     TutorPage sends tutor_top, writes the reply's text as it is generated
-     (escaped), then sends tutor_bottom. tutor_top therefore ends *inside*
-     the streaming reply's text element, and tutor_bottom closes it. With
-     nothing streaming, the page is simply both halves, below. */}}
+{{/* Streams in two halves around the reply; see templates/chat.html. */}}
 
 {{define "tutor_top"}}
 {{template "_header" .}}
@@ -25,29 +21,14 @@
 <div class="form-error">The tutor needs an AI provider. Set one up under <a href="/profile/ai">Profile → AI Provider</a>.</div>
 {{end}}
 
-<div class="tutor-thread">
-    {{range .Data.Messages}}
-    <div class="tutor-msg tutor-{{.Role}}">
-        <div class="tutor-role">{{if eq .Role "user"}}You{{else}}Tutor{{end}}</div>
-        <div class="tutor-text">{{.Content}}{{if eq .Status "error"}}<span class="tutor-error">The tutor could not finish this reply. Ask again.</span>{{end}}</div>
-    </div>
-    {{end}}
-    {{if .Data.Streaming}}
-    <div class="tutor-msg tutor-assistant tutor-streaming">
-        <div class="tutor-role">Tutor</div>
-        <div class="tutor-text">{{.Data.Streaming.Content}}{{/* streamed text continues here */}}
-    {{end}}
+{{template "_chat_open" .Data.ChatData}}
 {{end}}
 
 {{define "tutor_bottom"}}
-    {{/* tutor-done lets CSS stop the cursor: the streaming element's class
-         was already sent and can't be changed, but content can be added. */}}
-    {{if .Data.Streaming}}<span class="tutor-done"></span></div>
-    </div>{{end}}
-</div>
+{{template "_chat_close" .Data.ChatData}}
 
 {{if .Data.Configured}}
-<form method="POST" action="/cards/{{.Data.Card.ID}}/tutor" class="tutor-form">
+<form method="POST" action="/cards/{{.Data.Card.ID}}/tutor" class="chat-form">
     <div class="tutor-presets">
         {{range .Data.Presets}}
         <button name="preset" value="{{.Key}}" class="btn btn-sm">{{.Label}}</button>
@@ -63,7 +44,7 @@
 {{end}}
 
 {{if .Data.Messages}}
-<form method="POST" action="/cards/{{.Data.Card.ID}}/tutor/reset" class="tutor-reset"
+<form method="POST" action="/cards/{{.Data.Card.ID}}/tutor/reset" class="chat-reset"
       onsubmit="return confirm('Clear this conversation?')">
     <button class="btn btn-sm">Start Over</button>
 </form>

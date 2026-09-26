@@ -30,21 +30,28 @@ func tutorUser(t *testing.T, prefix string, configured bool) (playwright.Page, s
 	}
 
 	if configured {
-		u, err := models.GetUserByEmail(configuration.DB, email)
-		if err != nil || u == nil {
-			t.Fatalf("look up %s: %v", email, err)
-		}
-		for key, value := range map[string]string{
-			"llm.provider": "custom",
-			"llm.base_url": configuration.FakeLLMURL,
-			"llm.model":    "fake-model",
-		} {
-			if err := models.SetSetting(configuration.DB, u.ID, key, value); err != nil {
-				t.Fatal(err)
-			}
-		}
+		useFakeLLM(t, email)
 	}
 	return page, href
+}
+
+// useFakeLLM points the user's AI provider at the fake LLM server TestMain
+// runs.
+func useFakeLLM(t *testing.T, email string) {
+	t.Helper()
+	u, err := models.GetUserByEmail(configuration.DB, email)
+	if err != nil || u == nil {
+		t.Fatalf("look up %s: %v", email, err)
+	}
+	for key, value := range map[string]string{
+		"llm.provider": "custom",
+		"llm.base_url": configuration.FakeLLMURL,
+		"llm.model":    "fake-model",
+	} {
+		if err := models.SetSetting(configuration.DB, u.ID, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func waitAttached(t *testing.T, page playwright.Page, selector string) {
@@ -75,36 +82,36 @@ func TutorStreamsReply(t *testing.T) {
 	click(t, page, ".tutor-presets button:has-text('Explain')")
 
 	// Mid-stream: first chunk shown, reply not finished.
-	streaming := page.Locator(".tutor-streaming .tutor-text")
+	streaming := page.Locator(".chat-streaming .chat-text")
 	if err := streaming.WaitFor(); err != nil {
 		t.Fatal(err)
 	}
-	if err := page.Locator(".tutor-streaming .tutor-text:has-text('Hola!')").WaitFor(); err != nil {
+	if err := page.Locator(".chat-streaming .chat-text:has-text('Hola!')").WaitFor(); err != nil {
 		t.Fatalf("first chunk never appeared: %v", err)
 	}
-	if n := components.CountLocators(t, page, ".tutor-done"); n != 0 {
+	if n := components.CountLocators(t, page, ".chat-done"); n != 0 {
 		t.Fatal("reply already complete: the page was not streamed")
 	}
 
-	waitAttached(t, page, ".tutor-done")
-	reply := textOf(t, page, ".tutor-streaming .tutor-text")
+	waitAttached(t, page, ".chat-done")
+	reply := textOf(t, page, ".chat-streaming .chat-text")
 	if !strings.Contains(reply, "You asked: Explain this word") {
 		t.Errorf("reply = %q, want the full streamed text", reply)
 	}
 
 	// After a reload the reply comes from the database, finished.
 	components.NavigateTo(t, page, tutorURL)
-	if n := components.CountLocators(t, page, ".tutor-streaming"); n != 0 {
+	if n := components.CountLocators(t, page, ".chat-streaming"); n != 0 {
 		t.Error("reply still marked as streaming after it finished")
 	}
-	saved := textOf(t, page, ".tutor-assistant .tutor-text")
+	saved := textOf(t, page, ".chat-assistant .chat-text")
 	if !strings.Contains(saved, "<b>bold</b> stays text.") {
 		t.Errorf("saved reply = %q, want the model's markup shown as text", saved)
 	}
-	if n := components.CountLocators(t, page, ".tutor-text b"); n != 0 {
+	if n := components.CountLocators(t, page, ".chat-text b"); n != 0 {
 		t.Error("model output was rendered as HTML")
 	}
-	if q := textOf(t, page, ".tutor-user .tutor-text"); !strings.HasPrefix(q, "Explain this word") {
+	if q := textOf(t, page, ".chat-user .chat-text"); !strings.HasPrefix(q, "Explain this word") {
 		t.Errorf("question = %q, want the Explain preset", q)
 	}
 }
@@ -114,10 +121,10 @@ func TutorFreeTextQuestion(t *testing.T) {
 	components.NavigateTo(t, page, tutorURL)
 
 	fill(t, page, "textarea[name=question]", "Is it formal?")
-	click(t, page, ".tutor-form button:has-text('Ask')")
-	waitAttached(t, page, ".tutor-done")
+	click(t, page, ".chat-form button:has-text('Ask')")
+	waitAttached(t, page, ".chat-done")
 
-	if reply := textOf(t, page, ".tutor-streaming .tutor-text"); !strings.Contains(reply, "You asked: Is it formal?") {
+	if reply := textOf(t, page, ".chat-streaming .chat-text"); !strings.Contains(reply, "You asked: Is it formal?") {
 		t.Errorf("reply = %q", reply)
 	}
 }
@@ -126,13 +133,13 @@ func TutorStartOverClears(t *testing.T) {
 	page, tutorURL := tutorUser(t, "tutorreset", true)
 	components.NavigateTo(t, page, tutorURL)
 	click(t, page, ".tutor-presets button:has-text('Quiz me')")
-	waitAttached(t, page, ".tutor-done")
+	waitAttached(t, page, ".chat-done")
 
 	components.NavigateTo(t, page, tutorURL)
 	click(t, page, "button:has-text('Start Over')") // confirm() is auto-accepted
 	components.WaitForURL(t, page, "**"+tutorURL)
 
-	if n := components.CountLocators(t, page, ".tutor-msg"); n != 0 {
+	if n := components.CountLocators(t, page, ".chat-msg"); n != 0 {
 		t.Errorf("%d messages left after Start Over", n)
 	}
 }
@@ -144,7 +151,7 @@ func TutorNeedsProvider(t *testing.T) {
 	if n := components.CountLocators(t, page, ".form-error a[href='/profile/ai']"); n != 1 {
 		t.Error("expected a pointer to AI Provider settings")
 	}
-	if n := components.CountLocators(t, page, ".tutor-form"); n != 0 {
+	if n := components.CountLocators(t, page, ".chat-form"); n != 0 {
 		t.Error("question form shown with no provider configured")
 	}
 }

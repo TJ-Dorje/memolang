@@ -89,24 +89,6 @@ func ReSaveKeepsAPIKey(t *testing.T) {
 	}
 }
 
-func AIFormWithoutConfig(t *testing.T) {
-	page := components.NewPage(t)
-	actions.ResetLLMSettings(t)
-
-	actions.SubmitAIForm(t, page, "Test Deck", "German", "Common words")
-	components.WaitForURL(t, page, "**/decks/new**")
-
-	errMsg := components.GetFormError(t, page)
-	if !strings.Contains(errMsg, "AI Provider") {
-		t.Errorf("expected error to point at AI Provider, got %q", errMsg)
-	}
-
-	settingsCount, _ := page.Locator(".form-error a[href='/profile/ai']").Count()
-	if settingsCount == 0 {
-		t.Error("expected AI Provider link in error box")
-	}
-}
-
 // SettingsValidation: Base URL and Model are still required where nothing can
 // supply them — Custom. This used to assert the same for a pristine form, but
 // presets now prefill every other provider, so an empty submission there is

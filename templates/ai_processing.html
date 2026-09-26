@@ -5,11 +5,11 @@
 
 <div class="ai-spinner">
     <div class="spinner-ring"></div>
-    <p>Asking the AI to generate your cards&hellip;</p>
-    <p class="sub">This may take a minute for large requests.</p>
+    <p>{{.Data.Message}}</p>
+    <p class="sub">{{.Data.Sub}}</p>
 </div>
 
-<meta http-equiv="refresh" content="0;url=/decks/new-ai/execute?token={{.Data.Token}}">
+<meta http-equiv="refresh" content="0;url={{.Data.Next}}">
 
 <style>
 .ai-spinner {

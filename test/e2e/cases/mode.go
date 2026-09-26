@@ -66,11 +66,12 @@ func SRSDeckSaysWhenToComeBack(t *testing.T) {
 }
 
 // ModePickerExplainsBothModes: the descriptions are the only place the
-// difference is explained, on both forms that offer the choice.
+// difference is explained. The AI review form shares the same partial and is
+// checked in DeckBuilderInterviewToDeck.
 func ModePickerExplainsBothModes(t *testing.T) {
 	page := components.NewPage(t)
 
-	for _, path := range []string{"/decks/new", "/decks/new?ai_mode=true"} {
+	for _, path := range []string{"/decks/new"} {
 		components.NavigateTo(t, page, path)
 		if n := components.CountLocators(t, page, ".mode-option .hint"); n != 2 {
 			t.Errorf("%s: %d mode descriptions, want 2", path, n)

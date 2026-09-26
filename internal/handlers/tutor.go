@@ -1,15 +1,11 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
-	"html/template"
-	"log"
 	"net/http"
 
-	"memolang/internal/ai"
+	"memolang/internal/assistant"
 	"memolang/internal/models"
-	"memolang/internal/tutor"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,82 +45,31 @@ func tutorURL(cardID int64) string {
 	return fmt.Sprintf("/cards/%d/tutor", cardID)
 }
 
-// TutorPage shows the conversation about a card. When the latest reply is
-// still being generated, the page is streamed: the top of the page (with the
-// history) is sent and flushed, the reply is written into it as it arrives,
-// then the bottom of the page (the question form) closes it. No JavaScript:
-// the browser renders the HTML as it comes in.
+// TutorPage shows the conversation about a card, streaming the latest reply
+// if it is still being generated.
 func (h *Handler) TutorPage(c *gin.Context) {
-	userID := currentUserID(c)
 	card, deck, ok := h.tutorCard(c)
 	if !ok {
 		return
 	}
 
-	msgs, err := models.GetTutorMessages(h.DB, userID, card.ID)
+	convID, err := models.FindTutorConversation(h.DB, currentUserID(c), card.ID)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to load conversation")
 		return
 	}
-
-	data := TutorData{Card: card, Deck: deck, Presets: tutorPresetList}
-	cfg, err := ai.LoadConfig(h.DB, userID)
-	data.Configured = err == nil && cfg.Provider != ""
-
-	if n := len(msgs); n > 0 && msgs[n-1].Status == "generating" {
-		data.Streaming = &msgs[n-1]
-		msgs = msgs[:n-1]
-	}
-	data.Messages = msgs
-
-	pd := h.withChrome(c, PageData{Title: "Tutor — " + card.Front, Flash: h.getFlash(c), Data: data})
-
-	if data.Streaming == nil {
-		c.HTML(http.StatusOK, "tutor.html", pd)
+	chat, err := h.loadChat(c, convID)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to load conversation")
 		return
 	}
-	h.streamTutorPage(c, pd, *data.Streaming)
-}
+	chat.AssistantName = "Tutor"
 
-func (h *Handler) streamTutorPage(c *gin.Context, pd PageData, reply models.TutorMessage) {
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	// Tells nginx-style proxies not to buffer, which would hold the stream
-	// back until it ended. Harmless when there is no proxy.
-	c.Header("X-Accel-Buffering", "no")
-	c.Header("Cache-Control", "no-store")
-	c.Status(http.StatusOK)
-
-	if err := h.renderPart(c, "tutor_top", pd); err != nil {
-		log.Printf("TutorPage: render top: %v", err)
-		return
-	}
-	c.Writer.Flush()
-
-	// Model output is untrusted: every chunk is HTML-escaped before it is
-	// written, exactly as the template would escape it.
-	found, err := h.Tutor.Broker.Follow(c.Request.Context(), tutor.ReplyKey(reply.ID), func(chunk string) error {
-		if _, err := c.Writer.WriteString(template.HTMLEscapeString(chunk)); err != nil {
-			return err
-		}
-		c.Writer.Flush()
-		return nil
+	h.renderChat(c, "tutor.html", "tutor_top", "tutor_bottom", PageData{
+		Title: "Tutor — " + card.Front,
+		Flash: h.getFlash(c),
+		Data:  TutorData{ChatData: chat, Card: card, Deck: deck, Presets: tutorPresetList},
 	})
-
-	switch {
-	case !found:
-		// Nothing is producing this reply: the server restarted mid-reply.
-		c.Writer.WriteString(template.HTMLEscapeString(reply.Content))
-		if err := h.Tutor.MarkInterrupted(reply); err != nil {
-			log.Printf("TutorPage: mark interrupted: %v", err)
-		}
-		c.Writer.WriteString(`<span class="tutor-error">The reply was interrupted. Ask again.</span>`)
-	case err != nil:
-		c.Writer.WriteString(`<span class="tutor-error">The tutor could not finish this reply. Ask again.</span>`)
-	}
-
-	if err := h.renderPart(c, "tutor_bottom", pd); err != nil {
-		log.Printf("TutorPage: render bottom: %v", err)
-	}
 }
 
 func (h *Handler) AskTutor(c *gin.Context) {
@@ -139,28 +84,26 @@ func (h *Handler) AskTutor(c *gin.Context) {
 		question = preset
 	}
 
-	err := h.Tutor.Ask(userID, card, deck.Name, question)
-	switch {
-	case errors.Is(err, tutor.ErrEmptyQuestion):
-		h.redirectWithFlash(c, tutorURL(card.ID), "Type a question, or pick one of the buttons.")
-	case errors.Is(err, ai.ErrNotConfigured):
-		h.redirectWithFlash(c, tutorURL(card.ID), "Set up an AI provider first: Profile → AI Provider.")
-	case errors.Is(err, tutor.ErrBusy):
-		h.redirectWithFlash(c, tutorURL(card.ID), "The tutor is still answering. Wait for it to finish.")
-	case err != nil:
-		log.Printf("AskTutor: %v", err)
-		h.redirectWithFlash(c, tutorURL(card.ID), "Could not ask the tutor: "+err.Error())
-	default:
-		c.Redirect(http.StatusSeeOther, tutorURL(card.ID))
+	open := func() (int64, error) { return models.GetOrCreateTutorConversation(h.DB, userID, card.ID) }
+	err := h.Assistant.Ask(userID, open, assistant.TutorPrompt(card, deck.Name), question)
+	if msg := askFlash(err); msg != "" {
+		h.redirectWithFlash(c, tutorURL(card.ID), msg)
+		return
 	}
+	c.Redirect(http.StatusSeeOther, tutorURL(card.ID))
 }
 
 func (h *Handler) ResetTutor(c *gin.Context) {
+	userID := currentUserID(c)
 	card, _, ok := h.tutorCard(c)
 	if !ok {
 		return
 	}
-	if err := models.ResetTutorThread(h.DB, currentUserID(c), card.ID); err != nil {
+	convID, err := models.FindTutorConversation(h.DB, userID, card.ID)
+	if err == nil {
+		err = models.DeleteConversation(h.DB, userID, convID)
+	}
+	if err != nil {
 		h.redirectWithFlash(c, tutorURL(card.ID), "Failed to clear the conversation.")
 		return
 	}

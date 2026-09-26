@@ -1,7 +1,7 @@
 # MemoLang — Assistant Plan, Phase 2: Card-Maintenance Agent (M11)
 
 Continues the tutor (M10, shipped): a per-card, streaming, no-JavaScript chat
-built on `ai.Provider.Chat`, `internal/stream` and `internal/tutor`. Phase 2
+built on `ai.Provider.Chat`, `internal/stream` and `internal/assistant` (which also runs the deck-builder interview). Phase 2
 lets the assistant **change cards** — fix typos and wrong translations, add
 examples, add new cards, flag duplicates — through tool calls, with **every
 change a proposal the learner applies by hand**.
@@ -18,9 +18,9 @@ and a verifiable "Done when". Follow `CLAUDE.md` (no ORM, plain SQL in
 - `ai.Provider.Chat(ctx, ChatRequest{System, Messages, MaxTokens}, onToken)`
   streams text on both transports. `ChatRequest` is a struct precisely so
   `Tools` can be added here without touching callers.
-- `internal/tutor.Service.Ask` runs one generation per question in a detached
+- `internal/assistant.Service.Ask` runs one generation per question in a detached
   goroutine, publishing to a `stream.Broker`; `TutorPage` streams it as HTML.
-- Threads are per (user, card): `tutor_threads`, `tutor_messages`.
+- Conversations live in `conversations` (kind `tutor` | `deck_builder`) and `conversation_messages`; a deck assistant is one more kind, not new tables. The chat page streaming is shared: `renderChat` + `templates/chat.html`.
 - The tutor has **no tools**: the worst a prompt-injected card can do is make
   a reply odd.
 
@@ -150,7 +150,7 @@ explicitly rather than failing silently:
 ## Tasks
 
 ### T-070: Tool types on `ChatRequest` / `ChatResult`
-Files: `internal/ai/chat.go`, `internal/ai/ai.go`, callers in `internal/tutor`.
+Files: `internal/ai/chat.go`, `internal/ai/ai.go`, callers in `internal/assistant`.
 Add `Tool`, `ToolCall`, `ChatResult`; `Chat` returns `ChatResult`; the tutor
 uses `.Text`. No transport support yet — requests with tools error clearly.
 **Done when:** all existing tests pass unchanged in behaviour.
@@ -183,8 +183,8 @@ File: `internal/agent/tools.go` + model queries as needed.
 "not found", never data.
 
 ### T-075: Proposals table + propose tools
-Migration `0006_assistant.sql` (threads/messages per deck, proposals);
-`internal/models/assistant.go`.
+Migration `0007_deck_assistant.sql` (a `deck_assistant` conversation kind with `deck_id`, and the proposals table);
+`internal/models/proposals.go`.
 **Done when:** propose tools write only to `assistant_proposals`; a model
 test proves no `cards` row changes during a run.
 

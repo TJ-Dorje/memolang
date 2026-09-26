@@ -90,6 +90,12 @@ func TestE2E(t *testing.T) {
 		t.Run("DashboardLayout", cases.DashboardLayout)
 		t.Run("EditDeck", cases.EditDeck)
 	})
+	t.Run("DeckBuilder", func(t *testing.T) {
+		t.Run("DeckBuilderInterviewToDeck", cases.DeckBuilderInterviewToDeck)
+		t.Run("DeckBuilderNeedsProvider", cases.DeckBuilderNeedsProvider)
+		t.Run("OldAIFormLeadsToAssistant", cases.OldAIFormLeadsToAssistant)
+		t.Run("DeckBuilderStartOver", cases.DeckBuilderStartOver)
+	})
 	t.Run("Tutor", func(t *testing.T) {
 		t.Run("TutorStreamsReply", cases.TutorStreamsReply)
 		t.Run("TutorFreeTextQuestion", cases.TutorFreeTextQuestion)
@@ -160,7 +166,6 @@ func TestE2E(t *testing.T) {
 		t.Run("ReSaveKeepsAPIKey", cases.ReSaveKeepsAPIKey)
 		t.Run("ClearAPIKeyRemovesIt", cases.ClearAPIKeyRemovesIt)
 		t.Run("ClearAndNewKeyIsRejected", cases.ClearAndNewKeyIsRejected)
-		t.Run("AIFormWithoutConfig", cases.AIFormWithoutConfig)
 		t.Run("SettingsValidation", cases.SettingsValidation)
 		t.Run("PresetPrefillsBaseURLAndModel", cases.PresetPrefillsBaseURLAndModel)
 		t.Run("PresetSaveNeedsOnlyAKey", cases.PresetSaveNeedsOnlyAKey)

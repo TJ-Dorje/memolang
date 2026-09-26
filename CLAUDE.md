@@ -56,7 +56,7 @@ main.go (route registration)
 
 **Auth: password login, DB-backed sessions, private decks.** Everything except `/login`, `/register`, `/logout` and `/static` sits behind `middleware.RequireAuth`, which resolves the `session` cookie to a user and puts it in the gin context (`currentUserID(c)` reads it back). Decks are owned; `GetDeckByID`/`GetCardByID` scope by owner so another user's id is a 404, never a 403 (no existence leak). Handlers that take an id from the request body (`SubmitAnswer`, `EndSessionEarly`) bind it back to an owned deck via `GetSessionByID` before writing. Cookies are httpOnly + `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); set `SECURE_COOKIES=1` when serving over TLS.
 
-**Streaming pages (the AI tutor).** LLM replies stream into the page with no JavaScript: `POST /cards/:id/tutor` stores the question, starts generation in a detached goroutine (`internal/tutor`), and 303s to the GET, which writes the page's top half (`tutor_top`), flushes, writes each reply chunk HTML-escaped and flushed as it arrives, then the bottom half (`tutor_bottom`). The goroutine publishes to a `stream.Broker` (`internal/stream`, in-memory; an interface so NATS could replace it for multiple replicas), so a reload reattaches to the same reply and a closed tab doesn't cancel it. `ai.Provider.Chat` streams on both transports. Model output is untrusted: always escape it.
+**Streaming pages (the AI assistant: tutor, deck builder).** LLM replies stream into the page with no JavaScript: the POST stores the question, starts generation in a detached goroutine (`internal/assistant`), and 303s to the GET, which writes the page's top half, flushes, writes each reply chunk HTML-escaped and flushed as it arrives, then the bottom half (`renderChat` in `internal/handlers/chat.go`; shared partials in `templates/chat.html`). The goroutine publishes to a `stream.Broker` (`internal/stream`, in-memory; an interface so NATS could replace it for multiple replicas), so a reload reattaches to the same reply and a closed tab doesn't cancel it. `ai.Provider.Chat` streams on both transports. Model output is untrusted: always escape it.
 
 **Session state lives in the DB.** The active study session (card queue as JSON, current position, score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active.
 
@@ -109,7 +109,7 @@ It is SM-2 with Anki's reading of the buttons: Hard is a *pass* (slow growth), a
 - `study_sessions` — card_queue (JSON int array), position, correct/total counters, ended_at
 - `session_answers` — per-answer record backing the feedback and summary screens
 - `settings` — per-user key/value store (composite PK `(user_id, key)`), currently `llm.*` keys only
-- `tutor_threads` — one per (user, card); `tutor_messages` — role, content, status (`done` | `generating` | `error`)
+- `conversations` — assistant chats: kind `tutor` (one per user per card) or `deck_builder` (one open per user); `conversation_messages` — role, content, status (`done` | `generating` | `error`)
 
 Foreign keys with `ON DELETE CASCADE` are enforced via `_pragma=foreign_keys(1)` in the DSN, so every pooled connection gets it (an `Exec`'d pragma only affects one connection).
 

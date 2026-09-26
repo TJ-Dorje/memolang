@@ -1,0 +1,34 @@
+{{/* Shared by the assistant's chat pages (tutor, deck builder); called with
+     the page's ChatData. A reply that is still being generated streams
+     between the two halves: _chat_open ends *inside* its text element, the
+     handler writes the text as it arrives (escaped), and _chat_close ends
+     it. See renderChat in internal/handlers/chat.go. */}}
+
+{{define "_chat_open"}}
+<div class="chat-thread">
+    {{if .Greeting}}
+    <div class="chat-msg chat-assistant">
+        <div class="chat-role">{{.AssistantName}}</div>
+        <div class="chat-text">{{.Greeting}}</div>
+    </div>
+    {{end}}
+    {{range .Messages}}
+    <div class="chat-msg chat-{{.Role}}">
+        <div class="chat-role">{{if eq .Role "user"}}You{{else}}{{$.AssistantName}}{{end}}</div>
+        <div class="chat-text">{{.Content}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Ask again.</span>{{end}}</div>
+    </div>
+    {{end}}
+    {{if .Streaming}}
+    <div class="chat-msg chat-assistant chat-streaming">
+        <div class="chat-role">{{.AssistantName}}</div>
+        <div class="chat-text">{{.Streaming.Content}}{{/* streamed text continues here */}}
+    {{end}}
+{{end}}
+
+{{define "_chat_close"}}
+    {{/* chat-done lets CSS stop the cursor: the streaming element's class
+         was already sent and can't be changed, but content can be added. */}}
+    {{if .Streaming}}<span class="chat-done"></span></div>
+    </div>{{end}}
+</div>
+{{end}}

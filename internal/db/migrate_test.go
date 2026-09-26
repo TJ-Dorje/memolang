@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const latestVersion = 5
+const latestVersion = 6
 
 // preAuthDB builds a database the way the pre-auth schema.sql left it: no
 // user_version, decks without an owner, global settings. withData adds one
@@ -223,6 +223,47 @@ func TestOpenPreAuthWithoutDecksNeedsNoOwner(t *testing.T) {
 	}
 	if n := count(t, database, "SELECT COUNT(*) FROM settings"); n != 0 {
 		t.Errorf("settings = %d, want 0: ownerless settings are dropped", n)
+	}
+}
+
+// 0006 folds the tutor tables into conversations; existing threads and their
+// messages must survive with their ids.
+func TestConversationsMigrationKeepsTutorThreads(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v5.db")
+	database, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateTo(context.Background(), database, 5); err != nil {
+		t.Fatalf("migrateTo(5): %v", err)
+	}
+	mustExec(t, database, `
+		INSERT INTO users (id, email) VALUES (1, 'a@example.com');
+		INSERT INTO decks (id, user_id, name) VALUES (1, 1, 'D');
+		INSERT INTO cards (id, deck_id, front, back) VALUES (9, 1, 'hola', 'hello');
+		INSERT INTO tutor_threads (id, user_id, card_id) VALUES (3, 1, 9);
+		INSERT INTO tutor_messages (id, thread_id, role, content, status) VALUES
+			(7, 3, 'user', 'why?', 'done'),
+			(8, 3, 'assistant', 'because', 'done');
+	`)
+	database.Close()
+
+	noOwnerEnv(t)
+	migrated := openOrFail(t, path)
+
+	if count(t, migrated, "SELECT COUNT(*) FROM conversations WHERE id = 3 AND user_id = 1 AND kind = 'tutor' AND card_id = 9") != 1 {
+		t.Error("tutor thread not carried over as conversation 3")
+	}
+	if count(t, migrated, "SELECT COUNT(*) FROM conversation_messages WHERE conversation_id = 3 AND id IN (7, 8)") != 2 {
+		t.Error("tutor messages not carried over with their ids")
+	}
+	if count(t, migrated, "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('tutor_threads', 'tutor_messages')") != 0 {
+		t.Error("old tutor tables still present")
+	}
+	// Deleting the card still cascades through the new tables.
+	mustExec(t, migrated, "DELETE FROM cards WHERE id = 9")
+	if count(t, migrated, "SELECT COUNT(*) FROM conversation_messages") != 0 {
+		t.Error("deleting the card left its conversation messages behind")
 	}
 }
 
