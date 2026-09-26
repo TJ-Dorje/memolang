@@ -1,28 +1,16 @@
-CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    password_hash TEXT NOT NULL DEFAULT '',
-    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS user_sessions (
-    token      TEXT PRIMARY KEY,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expires_at DATETIME NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+-- The schema as it stood before accounts existed.
+--
+-- Kept as IF NOT EXISTS on purpose: databases from before migrations report
+-- user_version 0 whether they are brand new or pre-auth, so this file runs on
+-- both. On a pre-auth database it is a no-op that only fills in any table the
+-- old schema.sql had not created yet.
 
 CREATE TABLE IF NOT EXISTS decks (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name       TEXT    NOT NULL,
     mode       TEXT    NOT NULL DEFAULT 'srs',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS idx_decks_user ON decks(user_id);
 
 CREATE TABLE IF NOT EXISTS cards (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,11 +41,9 @@ CREATE TABLE IF NOT EXISTS study_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS settings (
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    key        TEXT NOT NULL,
+    key        TEXT PRIMARY KEY,
     value      TEXT NOT NULL,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, key)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS session_answers (
@@ -68,4 +54,5 @@ CREATE TABLE IF NOT EXISTS session_answers (
     given       TEXT    NOT NULL DEFAULT '',
     answered_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
 CREATE INDEX IF NOT EXISTS idx_session_answers_session ON session_answers(session_id);

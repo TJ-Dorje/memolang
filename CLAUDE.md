@@ -106,9 +106,13 @@ After calling `Update`, persist the result with `models.UpdateCardSRS(...)`.
 - `session_answers` — per-answer record backing the feedback and summary screens
 - `settings` — per-user key/value store (composite PK `(user_id, key)`), currently `llm.*` keys only
 
-Foreign keys with `ON DELETE CASCADE` are enforced via `PRAGMA foreign_keys = ON` set at connection time.
+Foreign keys with `ON DELETE CASCADE` are enforced via `_pragma=foreign_keys(1)` in the DSN, so every pooled connection gets it (an `Exec`'d pragma only affects one connection).
 
-`schema.sql` is `CREATE TABLE IF NOT EXISTS` only, so it cannot alter an existing table. `db.Open` refuses to start against a database predating `decks.user_id` and tells you to run `task db:reset`.
+### Migrations
+
+`db.Open` runs `internal/db/migrations/NNNN_*.sql` in order, tracking the version in `PRAGMA user_version` (see `internal/db/migrate.go`). To change the schema, add the next numbered file and a `{version, file}` entry to `migrations`; never edit a shipped one. Each migration is one transaction with foreign keys off (checked with `foreign_key_check` before commit), because SQLite table rebuilds (create `x_new`, copy, drop, rename) would otherwise cascade-delete child rows. A migration can have a Go `prepare` step for work SQL cannot do.
+
+Upgrading a pre-auth database that has decks needs `MIGRATE_OWNER_EMAIL` + `MIGRATE_OWNER_PASSWORD` for one start: `0003` creates that account and gives it the old decks and settings. Without decks, no owner is needed and old settings are dropped.
 
 ### CSV import flow
 
