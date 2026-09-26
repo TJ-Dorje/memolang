@@ -9,6 +9,7 @@
     <div>
         <h1>{{$deck.Name}}</h1>
         <div class="meta">
+            <span class="deck-mode" title="Study mode — change it under Edit">{{if eq $deck.Mode "linear"}}Linear{{else}}SRS{{end}}</span> ·
             {{$deck.CardCount}} cards ·
             {{if $deck.DueCount}}{{$deck.DueCount}} due · {{end}}
             {{$deck.MasteryPct}}% mastery

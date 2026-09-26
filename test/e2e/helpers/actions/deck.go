@@ -26,6 +26,54 @@ func CreateDeck(t *testing.T, page playwright.Page, name string) string {
 	return page.URL()
 }
 
+// CreateDeckWithMode is CreateDeck with an explicit study mode ("srs" or
+// "linear") picked in the form.
+func CreateDeckWithMode(t *testing.T, page playwright.Page, name, mode string) string {
+	t.Helper()
+	if _, err := page.Goto(configuration.BaseURL + "/decks/new"); err != nil {
+		t.Fatal(err)
+	}
+	if err := components.FillInput(page, "input[name=name]", name); err != nil {
+		t.Fatal(err)
+	}
+	if err := page.Locator("input[name=mode][value=" + mode + "]").Check(); err != nil {
+		t.Fatal(err)
+	}
+	if err := components.ClickButton(page, "button[type=submit]"); err != nil {
+		t.Fatal(err)
+	}
+	if err := page.WaitForURL("**/decks/**"); err != nil {
+		t.Fatal(err)
+	}
+	return page.URL()
+}
+
+// RateAllFlashcards reveals and rates every card left in the session until
+// it reaches the summary.
+func RateAllFlashcards(t *testing.T, page playwright.Page, rating int) {
+	t.Helper()
+	for range maxClickLoop {
+		if contains(page.URL(), "summary") {
+			return
+		}
+		if err := page.Locator("#reveal-btn").Click(); err != nil {
+			t.Fatal(err)
+		}
+		// Wait for the navigation the rating causes. WaitForURL is no use
+		// here: the next card lives at the same /session URL, so it returns at
+		// once and the next pass reads the old page. ExpectNavigation is marked
+		// deprecated as racy, but that applies to waiting after the fact;
+		// triggering the click inside its callback is the race-free use.
+		_, err := page.ExpectNavigation(func() error {
+			return page.Locator("button[value='" + string(rune('0'+rating)) + "']").Click()
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Fatalf("session did not reach its summary within %d cards", maxClickLoop)
+}
+
 // DeleteDeck removes the deck; no-op if deckURL is empty or the deck is
 // already gone (safe to use in defer after a test deleted it itself).
 func DeleteDeck(t *testing.T, page playwright.Page, deckURL string) {

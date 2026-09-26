@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -113,12 +114,19 @@ func (h *Handler) startNewSession(c *gin.Context, deck models.Deck) (*models.Stu
 	}
 
 	if len(cardIDs) == 0 {
+		// Only an SRS deck with cards can come up empty (nothing due yet);
+		// NextDue tells the user when to come back. Zero means no cards at all.
+		nextDue, _, err := models.GetNextDueDate(h.DB, deck.ID)
+		if err != nil {
+			log.Printf("startNewSession: GetNextDueDate: %v", err)
+		}
 		h.render(c, http.StatusOK, "session.html", PageData{
 			Title: deck.Name + " — Study",
 			Flash: h.getFlash(c),
 			Data: SessionData{
-				Deck:  deck,
-				Empty: true,
+				Deck:    deck,
+				Empty:   true,
+				NextDue: nextDue,
 			},
 		})
 		return nil, false
@@ -133,12 +141,13 @@ func (h *Handler) startNewSession(c *gin.Context, deck models.Deck) (*models.Stu
 }
 
 // queueFor picks the card queue according to the deck's scheduling mode: SRS
-// decks study what is due, linear decks work through what is still unlearned.
+// decks study what is due, linear decks go through the whole deck, unlearned
+// cards first. Both grade with SM-2, so switching mode keeps all progress.
 func (h *Handler) queueFor(deck models.Deck) ([]int64, error) {
 	if deck.Mode == "srs" {
 		return models.GetDueCardIDs(h.DB, deck.ID, 50)
 	}
-	return models.GetNewCardIDs(h.DB, deck.ID, 20)
+	return models.GetLinearCardIDs(h.DB, deck.ID, 20)
 }
 
 // quizModeFrom treats anything that is not an explicit multiple-choice request

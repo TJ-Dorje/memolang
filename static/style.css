@@ -419,19 +419,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--blue); }
 }
 .form-error::before { content: "! "; font-weight: 700; }
 
-/* ── Radio group ── */
-.radio-group { display: flex; gap: var(--sp-5); }
-.radio-group label {
+/* ── Study-mode picker: one option per row, description under the name ── */
+.mode-picker { display: flex; flex-direction: column; gap: var(--sp-3); }
+.mode-picker .mode-option {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
     font-weight: 400;
     text-transform: none;
     letter-spacing: 0;
     font-size: var(--fs-base);
-    color: var(--fg-dim);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-1);
+    color: var(--fg);
     margin-bottom: 0;
+    cursor: pointer;
 }
+.mode-option input { margin-top: 0.2rem; }
+.mode-option span { display: flex; flex-direction: column; gap: var(--sp-1); }
+.deck-mode { color: var(--purple); }
 
 /* ── Deck grid ───────────────────────────────────────────────────── */
 .deck-grid {

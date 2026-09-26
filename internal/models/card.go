@@ -131,6 +131,24 @@ func GetRandomBackValues(db *sql.DB, deckID, excludeID int64, n int) ([]string, 
 	return backs, rows.Err()
 }
 
+// GetNextDueDate returns when the deck's earliest card falls due, for telling
+// the user when to come back. ok is false for a deck with no cards.
+func GetNextDueDate(db *sql.DB, deckID int64) (due time.Time, ok bool, err error) {
+	// MIN() drops the column's DATE type, so the driver hands back text.
+	var raw sql.NullString
+	if err := db.QueryRow("SELECT MIN(due_date) FROM cards WHERE deck_id = ?", deckID).Scan(&raw); err != nil {
+		return time.Time{}, false, err
+	}
+	if !raw.Valid || len(raw.String) < len("2006-01-02") {
+		return time.Time{}, false, nil
+	}
+	due, err = time.Parse("2006-01-02", raw.String[:len("2006-01-02")])
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return due, true, nil
+}
+
 func GetDueCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 	rows, err := db.Query(
 		`SELECT id FROM cards WHERE deck_id = ? AND due_date <= date('now') ORDER BY due_date LIMIT ?`,
@@ -152,9 +170,19 @@ func GetDueCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func GetNewCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
+// GetLinearCardIDs is the queue for a linear deck: every card, never passed
+// ones first in the order they were added, then the rest by due date. It used
+// to return only never-passed cards, so a card rated Good left linear study
+// for good and a finished deck had nothing left to study. Ordering the known
+// cards by due date makes the deck rotate on its own: each review pushes a
+// card's due date out, so the next session reaches different ones.
+func GetLinearCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 	rows, err := db.Query(
-		`SELECT id FROM cards WHERE deck_id = ? AND repetitions = 0 ORDER BY id LIMIT ?`,
+		`SELECT id FROM cards WHERE deck_id = ?
+		 ORDER BY repetitions > 0,
+		          CASE WHEN repetitions = 0 THEN id END,
+		          due_date, id
+		 LIMIT ?`,
 		deckID, limit,
 	)
 	if err != nil {

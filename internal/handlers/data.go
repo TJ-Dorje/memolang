@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"time"
+
 	"memolang/internal/ai"
 	"memolang/internal/models"
 )
@@ -47,11 +49,14 @@ type ImportData struct {
 
 // SessionData is the data payload for the study session page.
 type SessionData struct {
-	Deck       models.Deck
-	Session    models.StudySession
-	Card       models.Card
-	Progress   float64
-	Empty      bool
+	Deck     models.Deck
+	Session  models.StudySession
+	Card     models.Card
+	Progress float64
+	Empty    bool
+	// NextDue is when an empty SRS deck's first card falls due; zero when
+	// the deck has no cards.
+	NextDue    time.Time
 	MCOptions  []string
 	Feedback   bool
 	Answer     models.SessionAnswer

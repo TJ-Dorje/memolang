@@ -1,0 +1,25 @@
+{{define "_mode_picker"}}
+{{/* Study-mode choice, shared by the deck form and the AI form. Called with
+     the currently selected mode as a string; anything but "linear" selects
+     SRS, the default. The descriptions are the only place the difference is
+     explained, so keep them in step with queueFor in handlers/session.go. */}}
+<div>
+    <label>Study mode</label>
+    <div class="mode-picker">
+        <label class="mode-option">
+            <input type="radio" name="mode" value="srs"{{if ne . "linear"}} checked{{end}}>
+            <span>
+                <strong>SRS</strong>
+                <small class="hint">Spaced repetition. A session shows only the cards due today; cards you know come back after longer and longer gaps. Best for remembering long-term.</small>
+            </span>
+        </label>
+        <label class="mode-option">
+            <input type="radio" name="mode" value="linear"{{if eq . "linear"}} checked{{end}}>
+            <span>
+                <strong>Linear</strong>
+                <small class="hint">Straight through the deck. New cards first, in the order they were added, then the ones you already know. There is always something to study.</small>
+            </span>
+        </label>
+    </div>
+</div>
+{{end}}

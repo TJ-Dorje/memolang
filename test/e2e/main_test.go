@@ -85,6 +85,11 @@ func TestE2E(t *testing.T) {
 		t.Run("DashboardLayout", cases.DashboardLayout)
 		t.Run("EditDeck", cases.EditDeck)
 	})
+	t.Run("Mode", func(t *testing.T) {
+		t.Run("LinearDeckKeepsStudyingAfterEveryCardIsPassed", cases.LinearDeckKeepsStudyingAfterEveryCardIsPassed)
+		t.Run("SRSDeckSaysWhenToComeBack", cases.SRSDeckSaysWhenToComeBack)
+		t.Run("ModePickerExplainsBothModes", cases.ModePickerExplainsBothModes)
+	})
 	t.Run("Import", func(t *testing.T) {
 		t.Run("CSVImportPreviewThenExecute", cases.CSVImportPreviewThenExecute)
 		t.Run("CSVImportEmptyFileError", cases.CSVImportEmptyFileError)

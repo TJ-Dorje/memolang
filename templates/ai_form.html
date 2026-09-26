@@ -26,17 +26,7 @@
             placeholder="e.g. 300 most used verbs, common kitchen vocabulary">{{if .Data}}{{.Data.Prompt}}{{end}}</textarea>
     </div>
 
-    <div>
-        <label>Mode</label>
-        <div class="radio-group">
-            <label><input type="radio" name="mode" value="srs"
-                {{if not .Data}}checked{{else if eq .Data.Mode "srs"}}checked{{end}}>
-                SRS</label>
-            <label><input type="radio" name="mode" value="linear"
-                {{if .Data}}{{if eq .Data.Mode "linear"}}checked{{end}}{{end}}>
-                Linear</label>
-        </div>
-    </div>
+    {{template "_mode_picker" (or (and .Data .Data.Mode) "srs")}}
 
     <div>
         <button type="submit" class="btn btn-primary">Generate Cards</button>

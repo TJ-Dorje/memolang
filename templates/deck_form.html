@@ -12,17 +12,7 @@
             value="{{if .Data}}{{if .Data.Deck}}{{.Data.Deck.Name}}{{end}}{{end}}">
     </div>
 
-    <div>
-        <label>Mode</label>
-        <div class="radio-group">
-            <label><input type="radio" name="mode" value="srs"
-                {{if not .Data}}checked{{else if not .Data.Deck}}checked{{else if eq .Data.Deck.Mode "srs"}}checked{{end}}>
-                SRS</label>
-            <label><input type="radio" name="mode" value="linear"
-                {{if .Data}}{{if .Data.Deck}}{{if eq .Data.Deck.Mode "linear"}}checked{{end}}{{end}}{{end}}>
-                Linear</label>
-        </div>
-    </div>
+    {{template "_mode_picker" (or (and .Data .Data.Deck .Data.Deck.Mode) "srs")}}
 
     <div>
         <button type="submit" class="btn btn-primary">Save Deck</button>
