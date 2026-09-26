@@ -52,6 +52,7 @@
             <span class="back">— {{.Back}}</span>
         </div>
         <div class="actions">
+            <a href="/cards/{{.ID}}/tutor" class="btn btn-sm">Tutor</a>
             <a href="/cards/{{.ID}}/edit" class="btn btn-sm">Edit</a>
             <form method="POST" action="/cards/{{.ID}}/delete" style="display:inline"
                   onsubmit="return confirm('Delete this card?')">

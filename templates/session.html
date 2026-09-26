@@ -29,6 +29,7 @@
     <div class="feedback-answer">Correct answer: <strong>{{.Data.AnswerCard.Back}}</strong></div>
     {{if .Data.AnswerCard.Example}}<div class="example-text">{{.Data.AnswerCard.Example}}</div>{{end}}
     <a href="/decks/{{.Data.Deck.ID}}/session" class="btn btn-primary">Next →</a>
+    <a href="/cards/{{.Data.AnswerCard.ID}}/tutor" class="tutor-link">Ask the tutor about this card</a>
 </div>
 {{else if .Data.Empty}}
 <div class="empty-state">
@@ -120,6 +121,9 @@
                 <small class="rating-gap">{{index .Data.Gaps 3}}</small>
             </div>
         </div>
+        {{/* Leaving for the tutor records no answer; Back to study returns
+             to this same card. */}}
+        <a href="/cards/{{$card.ID}}/tutor" class="tutor-link">Ask the tutor about this card</a>
     </form>
 </div>
 {{end}}

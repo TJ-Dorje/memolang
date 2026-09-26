@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const latestVersion = 4
+const latestVersion = 5
 
 // preAuthDB builds a database the way the pre-auth schema.sql left it: no
 // user_version, decks without an owner, global settings. withData adds one
@@ -232,12 +232,19 @@ func TestOpenBaselinesPostAuthDB(t *testing.T) {
 	noOwnerEnv(t)
 	path := filepath.Join(t.TempDir(), "postauth.db")
 
-	database := openOrFail(t, path)
+	// Build exactly what the post-auth schema.sql produced: the schema as of
+	// authVersion, and no recorded version. Migrating only that far (rather
+	// than building the latest and undoing later migrations by hand) keeps
+	// this fixture correct as migrations are added.
+	database, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateTo(context.Background(), database, authVersion); err != nil {
+		t.Fatalf("migrateTo(%d): %v", authVersion, err)
+	}
 	mustExec(t, database, "INSERT INTO users (id, email) VALUES (1, 'a@example.com')")
 	mustExec(t, database, "INSERT INTO decks (id, user_id, name) VALUES (1, 1, 'French')")
-	// Wind back to what the post-auth schema.sql produced: no later columns,
-	// no recorded version.
-	mustExec(t, database, "ALTER TABLE users DROP COLUMN display_name")
 	mustExec(t, database, "PRAGMA user_version = 0")
 	database.Close()
 

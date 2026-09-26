@@ -9,6 +9,9 @@ import (
 
 var (
 	BaseURL string
+	// FakeLLMURL is the base URL of the fake OpenAI-compatible server
+	// TestMain starts, for cases that need an AI provider.
+	FakeLLMURL string
 	Browser playwright.Browser
 	DB      *sql.DB
 

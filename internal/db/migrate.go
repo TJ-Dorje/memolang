@@ -30,6 +30,7 @@ var migrations = []migration{
 	{version: 2, file: "0002_users.sql"},
 	{version: 3, file: "0003_deck_owners.sql", prepare: claimOrphanDecks},
 	{version: 4, file: "0004_display_name.sql"},
+	{version: 5, file: "0005_tutor.sql"},
 }
 
 // authVersion is where a database created by the post-auth schema.sql, before
@@ -43,6 +44,12 @@ const minOwnerPasswordLen = 8
 // file header's PRAGMA user_version. It pins one connection because the
 // foreign_keys pragma toggled around each migration is per-connection.
 func migrate(ctx context.Context, database *sql.DB) error {
+	return migrateTo(ctx, database, migrations[len(migrations)-1].version)
+}
+
+// migrateTo applies migrations up to and including target. Only tests stop
+// short of the latest, to build databases as an older release left them.
+func migrateTo(ctx context.Context, database *sql.DB, target int) error {
 	conn, err := database.Conn(ctx)
 	if err != nil {
 		return fmt.Errorf("migrate: %w", err)
@@ -55,7 +62,7 @@ func migrate(ctx context.Context, database *sql.DB) error {
 	}
 
 	for _, m := range migrations {
-		if m.version <= version {
+		if m.version <= version || m.version > target {
 			continue
 		}
 		if err := apply(ctx, conn, m); err != nil {

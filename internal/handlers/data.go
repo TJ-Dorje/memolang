@@ -105,6 +105,33 @@ type SecurityData struct {
 	DeleteError   string
 }
 
+// TutorData is the data payload for the tutor page.
+type TutorData struct {
+	Card     models.Card
+	Deck     models.Deck
+	Messages []models.TutorMessage
+	// Streaming is the reply still being generated, written into the page as
+	// it arrives; nil when nothing is in progress.
+	Streaming  *models.TutorMessage
+	Configured bool
+	Presets    []TutorPreset
+}
+
+// TutorPreset is a one-click question button.
+type TutorPreset struct {
+	Key   string
+	Label string
+}
+
+// tutorPresetList orders the preset buttons; the question text for each key
+// is in tutorPresets.
+var tutorPresetList = []TutorPreset{
+	{"explain", "Explain"},
+	{"examples", "More examples"},
+	{"mnemonic", "Memory trick"},
+	{"quiz", "Quiz me"},
+}
+
 // SessionSummaryData is the data payload for the session summary page.
 type SessionSummaryData struct {
 	Deck        models.Deck

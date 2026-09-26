@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MemoLang is a language-learning flashcard web app (Anki-style). Users import word/verb/phrase packs via CSV and study them through flashcard or multiple-choice sessions. Two scheduling modes per deck: **SRS** (SM-2 spaced repetition) and **Linear** (sequential, unlearned cards first).
 
-Full engineering plan and task backlog are in `docs/plans/PLAN.md` (follow-on work in `docs/plans/REFINEMENT_PLAN.md`). Chronological journal of key tech decisions and solutions is in `JOURNAL.md`.
+Full engineering plan and task backlog are in `docs/plans/PLAN.md` (follow-on work in `docs/plans/REFINEMENT_PLAN.md`; the card-maintenance agent, M11, in `docs/plans/ASSISTANT_AGENT_PLAN.md`). Chronological journal of key tech decisions and solutions is in `JOURNAL.md`.
 
 ## Tooling
 
@@ -50,11 +50,13 @@ main.go (route registration)
 
 ### Key design decisions
 
-**No ORM, no JS framework.** All DB access is `database/sql` with plain SQL strings in `internal/models/`. All UI is server-rendered Go templates — the only JavaScript in the project is ~15 lines in `static/card.js` for the flashcard flip animation.
+**No ORM, no JS framework.** All DB access is `database/sql` with plain SQL strings in `internal/models/`. All UI is server-rendered Go templates. JavaScript is progressive enhancement only and kept tiny (`static/card.js` flashcard flip, `settings.js` preset prefill, `menu.js` close-on-outside-click); every page works without it. Live output is done without JS too — see "Streaming pages" below.
 
 **All mutations are POST + redirect.** HTML forms only support GET/POST, so every write operation (create, update, delete, submit answer) is a `POST` that redirects on success. Flash messages are passed via a short-lived cookie (`Max-Age: 5`) set before redirect and read+cleared on the next GET.
 
 **Auth: password login, DB-backed sessions, private decks.** Everything except `/login`, `/register`, `/logout` and `/static` sits behind `middleware.RequireAuth`, which resolves the `session` cookie to a user and puts it in the gin context (`currentUserID(c)` reads it back). Decks are owned; `GetDeckByID`/`GetCardByID` scope by owner so another user's id is a 404, never a 403 (no existence leak). Handlers that take an id from the request body (`SubmitAnswer`, `EndSessionEarly`) bind it back to an owned deck via `GetSessionByID` before writing. Cookies are httpOnly + `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); set `SECURE_COOKIES=1` when serving over TLS.
+
+**Streaming pages (the AI tutor).** LLM replies stream into the page with no JavaScript: `POST /cards/:id/tutor` stores the question, starts generation in a detached goroutine (`internal/tutor`), and 303s to the GET, which writes the page's top half (`tutor_top`), flushes, writes each reply chunk HTML-escaped and flushed as it arrives, then the bottom half (`tutor_bottom`). The goroutine publishes to a `stream.Broker` (`internal/stream`, in-memory; an interface so NATS could replace it for multiple replicas), so a reload reattaches to the same reply and a closed tab doesn't cancel it. `ai.Provider.Chat` streams on both transports. Model output is untrusted: always escape it.
 
 **Session state lives in the DB.** The active study session (card queue as JSON, current position, score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active.
 
@@ -98,7 +100,7 @@ After calling `Update`, persist the result with `models.UpdateCardSRS(...)`.
 
 It is SM-2 with Anki's reading of the buttons: Hard is a *pass* (slow growth), and Again < Hard < Good < Easy always give strictly increasing gaps. `srs.Preview(state)` returns the four gaps without changing anything; the study screen shows them under the buttons, so `Update` must take its numbers from `Preview`. Again also re-queues the card at the end of the session (max 3 appearances per card).
 
-### Database schema (7 tables)
+### Database schema (9 tables)
 
 - `users` — email (UNIQUE, `COLLATE NOCASE`), password_hash (bcrypt; empty is reserved for future OAuth-only accounts), display_name (optional; `User.Name()` falls back to email)
 - `user_sessions` — login sessions: token (PK), user_id, expires_at
@@ -107,6 +109,7 @@ It is SM-2 with Anki's reading of the buttons: Hard is a *pass* (slow growth), a
 - `study_sessions` — card_queue (JSON int array), position, correct/total counters, ended_at
 - `session_answers` — per-answer record backing the feedback and summary screens
 - `settings` — per-user key/value store (composite PK `(user_id, key)`), currently `llm.*` keys only
+- `tutor_threads` — one per (user, card); `tutor_messages` — role, content, status (`done` | `generating` | `error`)
 
 Foreign keys with `ON DELETE CASCADE` are enforced via `_pragma=foreign_keys(1)` in the DSN, so every pooled connection gets it (an `Exec`'d pragma only affects one connection).
 

@@ -419,6 +419,58 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--blue); }
 }
 .form-error::before { content: "! "; font-weight: 700; }
 
+/* ── Tutor ── */
+.tutor-link {
+    display: inline-block;
+    margin-top: var(--sp-4);
+    font-size: var(--fs-sm);
+    color: var(--purple);
+}
+.tutor-link:hover { color: var(--fg); }
+.tutor-link::before { content: "? "; color: var(--muted); }
+
+.tutor-card {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: var(--sp-4);
+    margin-bottom: var(--sp-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+}
+.tutor-card-front { font-size: var(--fs-lg); font-weight: 700; }
+.tutor-card-back { color: var(--green); }
+.tutor-card-example { color: var(--muted); font-size: var(--fs-sm); }
+.tutor-card-example::before { content: "// "; }
+
+.tutor-thread { display: flex; flex-direction: column; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.tutor-msg { display: flex; flex-direction: column; gap: var(--sp-1); }
+.tutor-role { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.tutor-user .tutor-role { color: var(--blue); }
+.tutor-assistant .tutor-role { color: var(--purple); }
+.tutor-text {
+    white-space: pre-wrap;          /* model replies are plain text with line breaks */
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+    border-left: 2px solid var(--border);
+    padding-left: var(--sp-3);
+}
+.tutor-user .tutor-text { color: var(--fg-dim); }
+/* The TUI cursor from the flashcard, blinking at the end of a reply while it
+   streams. Pure CSS: tutor_bottom appends .tutor-done when the reply ends,
+   which switches it off. */
+.tutor-streaming .tutor-text::after {
+    content: "▌";
+    color: var(--blue);
+    animation: tutor-blink 1s steps(1) infinite;
+}
+@keyframes tutor-blink { 50% { opacity: 0; } }
+.tutor-streaming .tutor-text:has(.tutor-done)::after { content: none; }
+.tutor-error { display: block; margin-top: var(--sp-2); color: var(--red); font-size: var(--fs-sm); }
+
+.tutor-form { margin-bottom: var(--sp-4); }
+.tutor-presets { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
 /* ── Rating buttons: the gap each one gives sits under it ── */
 .rating-row {
     display: flex;

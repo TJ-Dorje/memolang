@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -47,6 +48,10 @@ func TestMain(m *testing.M) {
 	router := app.NewRouter(database)
 	go http.Serve(ln, router)
 
+	fakeLLM := httptest.NewServer(helpers.FakeLLMHandler())
+	defer fakeLLM.Close()
+	configuration.FakeLLMURL = fakeLLM.URL
+
 	pw, err := playwright.Run()
 	if err != nil {
 		panic(fmt.Sprintf("playwright.Run: %v", err))
@@ -84,6 +89,14 @@ func TestE2E(t *testing.T) {
 		t.Run("StudyDropdownOffersBothModes", cases.StudyDropdownOffersBothModes)
 		t.Run("DashboardLayout", cases.DashboardLayout)
 		t.Run("EditDeck", cases.EditDeck)
+	})
+	t.Run("Tutor", func(t *testing.T) {
+		t.Run("TutorStreamsReply", cases.TutorStreamsReply)
+		t.Run("TutorFreeTextQuestion", cases.TutorFreeTextQuestion)
+		t.Run("TutorStartOverClears", cases.TutorStartOverClears)
+		t.Run("TutorNeedsProvider", cases.TutorNeedsProvider)
+		t.Run("TutorOtherUsersCardIs404", cases.TutorOtherUsersCardIs404)
+		t.Run("TutorLinkAfterReveal", cases.TutorLinkAfterReveal)
 	})
 	t.Run("Rating", func(t *testing.T) {
 		t.Run("RatingButtonsShowGaps", cases.RatingButtonsShowGaps)

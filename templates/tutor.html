@@ -1,0 +1,74 @@
+{{/* The tutor page comes in two halves so a reply can stream between them:
+     TutorPage sends tutor_top, writes the reply's text as it is generated
+     (escaped), then sends tutor_bottom. tutor_top therefore ends *inside*
+     the streaming reply's text element, and tutor_bottom closes it. With
+     nothing streaming, the page is simply both halves, below. */}}
+
+{{define "tutor_top"}}
+{{template "_header" .}}
+{{$card := .Data.Card}}
+<div class="page-header">
+    <h1>Tutor</h1>
+    <div class="btn-group">
+        <a href="/decks/{{.Data.Deck.ID}}/session" class="btn btn-sm">← Back to study</a>
+        <a href="/decks/{{.Data.Deck.ID}}" class="btn btn-sm">Deck</a>
+    </div>
+</div>
+
+<div class="tutor-card">
+    <div class="tutor-card-front">{{$card.Front}}</div>
+    <div class="tutor-card-back">{{$card.Back}}</div>
+    {{if $card.Example}}<div class="tutor-card-example">{{$card.Example}}</div>{{end}}
+</div>
+
+{{if not .Data.Configured}}
+<div class="form-error">The tutor needs an AI provider. Set one up under <a href="/profile/ai">Profile → AI Provider</a>.</div>
+{{end}}
+
+<div class="tutor-thread">
+    {{range .Data.Messages}}
+    <div class="tutor-msg tutor-{{.Role}}">
+        <div class="tutor-role">{{if eq .Role "user"}}You{{else}}Tutor{{end}}</div>
+        <div class="tutor-text">{{.Content}}{{if eq .Status "error"}}<span class="tutor-error">The tutor could not finish this reply. Ask again.</span>{{end}}</div>
+    </div>
+    {{end}}
+    {{if .Data.Streaming}}
+    <div class="tutor-msg tutor-assistant tutor-streaming">
+        <div class="tutor-role">Tutor</div>
+        <div class="tutor-text">{{.Data.Streaming.Content}}{{/* streamed text continues here */}}
+    {{end}}
+{{end}}
+
+{{define "tutor_bottom"}}
+    {{/* tutor-done lets CSS stop the cursor: the streaming element's class
+         was already sent and can't be changed, but content can be added. */}}
+    {{if .Data.Streaming}}<span class="tutor-done"></span></div>
+    </div>{{end}}
+</div>
+
+{{if .Data.Configured}}
+<form method="POST" action="/cards/{{.Data.Card.ID}}/tutor" class="tutor-form">
+    <div class="tutor-presets">
+        {{range .Data.Presets}}
+        <button name="preset" value="{{.Key}}" class="btn btn-sm">{{.Label}}</button>
+        {{end}}
+    </div>
+    <label for="question">Your question</label>
+    <textarea id="question" name="question" rows="3"
+              placeholder="Ask anything about this word…"></textarea>
+    <div>
+        <button name="preset" value="" class="btn btn-primary">Ask</button>
+    </div>
+</form>
+{{end}}
+
+{{if .Data.Messages}}
+<form method="POST" action="/cards/{{.Data.Card.ID}}/tutor/reset" class="tutor-reset"
+      onsubmit="return confirm('Clear this conversation?')">
+    <button class="btn btn-sm">Start Over</button>
+</form>
+{{end}}
+{{template "_footer" .}}
+{{end}}
+
+{{template "tutor_top" .}}{{template "tutor_bottom" .}}

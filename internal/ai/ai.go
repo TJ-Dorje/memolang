@@ -35,6 +35,11 @@ type Provider interface {
 	// Ping performs a minimal request to verify connectivity and auth
 	// (5-second timeout). Used by the settings "Test connection" button.
 	Ping(ctx context.Context) error
+
+	// Chat continues a conversation, streaming the reply to onToken as it is
+	// generated, and returns the full reply. It sets no deadline of its own:
+	// the caller decides how long a reply may take through ctx.
+	Chat(ctx context.Context, req ChatRequest, onToken TokenFunc) (string, error)
 }
 
 // ErrNotConfigured is returned by New when no provider is set.

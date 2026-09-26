@@ -23,7 +23,7 @@ func NewRouter(database *sql.DB) *gin.Engine {
 	r.LoadHTMLGlob("templates/*.html")
 	r.Static("/static", "./static")
 
-	h := handlers.New(database)
+	h := handlers.New(database, r.HTMLRender)
 
 	// Public routes.
 	r.GET("/login", h.LoginForm)
@@ -58,6 +58,10 @@ func NewRouter(database *sql.DB) *gin.Engine {
 		protected.POST("/decks/:id/session/answer", h.SubmitAnswer)
 		protected.POST("/decks/:id/session/end", h.EndSessionEarly)
 		protected.GET("/decks/:id/session/summary", h.SessionSummary)
+
+		protected.GET("/cards/:id/tutor", h.TutorPage)
+		protected.POST("/cards/:id/tutor", h.AskTutor)
+		protected.POST("/cards/:id/tutor/reset", h.ResetTutor)
 
 		protected.GET("/cards/:id/edit", h.EditCardForm)
 		protected.POST("/cards/:id/edit", h.UpdateCard)

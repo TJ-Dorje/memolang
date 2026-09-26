@@ -9,8 +9,11 @@ import (
 	"sync"
 
 	"memolang/internal/models"
+	"memolang/internal/stream"
+	"memolang/internal/tutor"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 )
 
 type PageData struct {
@@ -26,13 +29,22 @@ type PageData struct {
 }
 
 type Handler struct {
-	DB      *sql.DB
+	DB    *sql.DB
+	Tutor *tutor.Service
+	// HTML is the engine's template renderer, for pages written in parts
+	// (renderPart). It follows gin's mode, so templates still reload from
+	// disk in debug.
+	HTML    render.HTMLRender
 	pending sync.Map
 	token   string
 }
 
-func New(db *sql.DB) *Handler {
-	return &Handler{DB: db}
+func New(db *sql.DB, html render.HTMLRender) *Handler {
+	return &Handler{
+		DB:    db,
+		Tutor: tutor.New(db, stream.NewMemory()),
+		HTML:  html,
+	}
 }
 
 func (h *Handler) storePending(data any) string {
@@ -53,13 +65,25 @@ func (h *Handler) loadPending(token string) (any, bool) {
 // renders the page. This is the only c.HTML call in the package, which is what
 // makes filling these here sufficient.
 func (h *Handler) render(c *gin.Context, status int, template string, pd PageData) {
+	c.HTML(status, template, h.withChrome(c, pd))
+}
+
+// withChrome fills the parts of PageData every page shares.
+func (h *Handler) withChrome(c *gin.Context, pd PageData) PageData {
 	pd.Theme = currentTheme(c)
 	pd.Path = c.Request.URL.RequestURI()
 
 	if pd.User == nil {
 		pd.User = userFromContext(c)
 	}
-	c.HTML(status, template, pd)
+	return pd
+}
+
+// renderPart writes one named template into a response that is already
+// under way, without touching the status or headers. Streaming pages use it
+// to send their top, stream content, then send their bottom.
+func (h *Handler) renderPart(c *gin.Context, name string, pd PageData) error {
+	return h.HTML.Instance(name, pd).Render(c.Writer)
 }
 
 // userFromContext returns the user RequireAuth stored, or nil on the public
