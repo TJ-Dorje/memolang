@@ -1,13 +1,17 @@
 {{template "_header" .}}
 <div class="page-header">
-    <h1>Settings</h1>
+    <h1>AI Provider</h1>
 </div>
 
+<div class="profile-layout">
+    {{template "_profile_nav" .}}
+
+    <section class="profile-body">
 {{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}{{end}}
 
 <h2>LLM Provider</h2>
 
-<form method="POST" action="/settings">
+<form method="POST" action="/profile/ai">
     {{/* Options carry their preset on data-* attributes so settings.js can
          refill the fields when the choice changes. With JS off the fields
          still work: SaveSettings falls back to the same preset server-side. */}}
@@ -73,7 +77,9 @@
 </form>
 <script src="/static/settings.js"></script>
 
-<form method="POST" action="/settings/test">
+<form method="POST" action="/profile/ai/test">
     <button type="submit" class="btn">Test Connection</button>
 </form>
+    </section>
+</div>
 {{template "_footer" .}}

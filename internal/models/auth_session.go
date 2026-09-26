@@ -28,14 +28,13 @@ func CreateUserSession(db *sql.DB, userID int64, ttl time.Duration) (string, err
 // GetUserByToken resolves a session cookie to its user. A missing or expired
 // token is not an error: it returns nil, nil.
 func GetUserByToken(db *sql.DB, token string) (*User, error) {
-	var u User
-	err := db.QueryRow(
-		`SELECT u.id, u.email, u.password_hash, u.created_at
+	u, err := scanUser(db.QueryRow(
+		`SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at
 		 FROM user_sessions s
 		 JOIN users u ON u.id = s.user_id
 		 WHERE s.token = ? AND s.expires_at > datetime('now')`,
 		token,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt)
+	))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -48,6 +47,28 @@ func GetUserByToken(db *sql.DB, token string) (*User, error) {
 func DeleteUserSession(db *sql.DB, token string) error {
 	_, err := db.Exec("DELETE FROM user_sessions WHERE token = ?", token)
 	return err
+}
+
+// CountUserSessions returns how many unexpired logins the user has, the
+// current one included.
+func CountUserSessions(db *sql.DB, userID int64) (int, error) {
+	var n int
+	err := db.QueryRow(
+		"SELECT COUNT(*) FROM user_sessions WHERE user_id = ? AND expires_at > datetime('now')", userID,
+	).Scan(&n)
+	return n, err
+}
+
+// DeleteOtherUserSessions logs the user out everywhere except the session
+// identified by keepToken, and returns how many were ended. Used after a
+// password change and by "sign out everywhere else": a stolen session must
+// not outlive either.
+func DeleteOtherUserSessions(db *sql.DB, userID int64, keepToken string) (int64, error) {
+	res, err := db.Exec("DELETE FROM user_sessions WHERE user_id = ? AND token != ?", userID, keepToken)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // newSessionToken returns 32 bytes of hex-encoded randomness. Unlike the

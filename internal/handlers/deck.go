@@ -140,7 +140,7 @@ func (h *Handler) AIExecute(c *gin.Context) {
 	if err != nil {
 		log.Printf("AIExecute: ai.New failed: %v", err)
 		if errors.Is(err, ai.ErrNotConfigured) {
-			fd.Error = "No LLM provider configured. Set one up in Settings first."
+			fd.Error = "No LLM provider configured. Set one up under Profile → AI Provider first."
 		} else {
 			fd.Error = "LLM configuration error: " + err.Error()
 		}

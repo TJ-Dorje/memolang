@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -43,12 +44,8 @@ func (h *Handler) Register(c *gin.Context) {
 		renderErr("Please enter a valid email address.")
 		return
 	}
-	if len(password) < minPasswordLen {
-		renderErr("Password must be at least 8 characters.")
-		return
-	}
-	if password != confirm {
-		renderErr("Passwords do not match.")
+	if msg := newPasswordProblem(password, confirm); msg != "" {
+		renderErr(msg)
 		return
 	}
 
@@ -104,13 +101,7 @@ func (h *Handler) Login(c *gin.Context) {
 		renderErr(badCreds)
 		return
 	}
-	// An empty hash means an account with no password (reserved for future
-	// OAuth-only accounts); it must never be loggable through this form.
-	if user == nil || user.PasswordHash == "" {
-		renderErr(badCreds)
-		return
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+	if !passwordMatches(user, password) {
 		renderErr(badCreds)
 		return
 	}
@@ -127,8 +118,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	if token, err := c.Cookie(middleware.SessionCookie); err == nil {
 		models.DeleteUserSession(h.DB, token)
 	}
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(middleware.SessionCookie, "", -1, "/", "", secureCookies(), true)
+	clearSessionCookie(c)
 	c.Redirect(http.StatusSeeOther, "/login")
 }
 
@@ -149,6 +139,33 @@ func (h *Handler) startSessionCookie(c *gin.Context, userID int64) error {
 // while a TLS deployment sets SECURE_COOKIES=1.
 func secureCookies() bool {
 	return os.Getenv("SECURE_COOKIES") == "1"
+}
+
+// newPasswordProblem applies the rules for choosing a password, shared by
+// registration and password change. It returns "" when the password is fine.
+func newPasswordProblem(password, confirm string) string {
+	if len(password) < minPasswordLen {
+		return fmt.Sprintf("Password must be at least %d characters.", minPasswordLen)
+	}
+	if password != confirm {
+		return "Passwords do not match."
+	}
+	return ""
+}
+
+// passwordMatches reports whether password is the user's current one. An
+// empty hash (reserved for OAuth-only accounts) never matches.
+func passwordMatches(u *models.User, password string) bool {
+	if u == nil || u.PasswordHash == "" {
+		return false
+	}
+	return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) == nil
+}
+
+// clearSessionCookie is the cookie half of logging out.
+func clearSessionCookie(c *gin.Context) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(middleware.SessionCookie, "", -1, "/", "", secureCookies(), true)
 }
 
 // safeNext keeps post-login redirects on this site.

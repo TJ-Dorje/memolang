@@ -1,0 +1,11 @@
+{{define "_profile_nav"}}
+{{/* Side menu shared by every page under /profile. The active entry comes
+     from .Path, which render fills for every page, so handlers don't need to
+     say which section they are. A future section (the AI assistant) is one
+     more link here. */}}
+<aside class="profile-nav" aria-label="Profile sections">
+    <a href="/profile"{{if eq .Path "/profile"}} class="active" aria-current="page"{{end}}>Account</a>
+    <a href="/profile/security"{{if hasPrefix .Path "/profile/security"}} class="active" aria-current="page"{{end}}>Security</a>
+    <a href="/profile/ai"{{if hasPrefix .Path "/profile/ai"}} class="active" aria-current="page"{{end}}>AI Provider</a>
+</aside>
+{{end}}

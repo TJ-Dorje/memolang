@@ -1,0 +1,36 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Profile</h1>
+</div>
+
+<div class="profile-layout">
+    {{template "_profile_nav" .}}
+
+    <section class="profile-body">
+        <h2>Account</h2>
+        <dl class="profile-facts">
+            <dt>Email</dt>
+            <dd>{{.User.Email}}</dd>
+            <dt>Member since</dt>
+            <dd>{{.User.CreatedAt.Format "2 January 2006"}}</dd>
+        </dl>
+
+        {{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}
+
+        <form method="POST" action="/profile">
+            <div>
+                <label for="display_name">Display name</label>
+                {{/* After a rejected save, show what was typed, not the stored
+                     value, so the user can correct it. */}}
+                <input type="text" id="display_name" name="display_name" maxlength="50"
+                       value="{{if .Data.Error}}{{.Data.DisplayName}}{{else}}{{.User.DisplayName}}{{end}}"
+                       placeholder="{{.User.Email}}">
+                <small class="hint">Shown in the menu instead of your email. Leave empty to use your email.</small>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </section>
+</div>
+{{template "_footer" .}}

@@ -81,6 +81,22 @@ type SettingsData struct {
 	Error   string
 }
 
+// ProfileData is the data payload for the profile (account) page. DisplayName
+// is only set when re-rendering a rejected submission; otherwise the template
+// reads the saved value from PageData.User.
+type ProfileData struct {
+	DisplayName string
+	Error       string
+}
+
+// SecurityData is the data payload for the security page. Each form has its
+// own error so the message appears next to the form that caused it.
+type SecurityData struct {
+	Sessions      int
+	PasswordError string
+	DeleteError   string
+}
+
 // SessionSummaryData is the data payload for the session summary page.
 type SessionSummaryData struct {
 	Deck        models.Deck

@@ -10,22 +10,30 @@ import (
 	"memolang/test/e2e/helpers/components"
 )
 
-func SettingsNavLink(t *testing.T) {
+// ProfileLeadsToAIProvider: the LLM settings moved from a top-level nav link
+// to a section of the profile, reached through the account menu.
+func ProfileLeadsToAIProvider(t *testing.T) {
 	page := components.NewPage(t)
-
 	components.NavigateTo(t, page, "/")
 
-	visible := components.VerifyNavLink(t, page, "Settings")
-	if !visible {
-		t.Error("Settings link not visible in nav")
-	}
-
-	components.ClickNavLink(t, page, "Settings")
-	components.WaitForURL(t, page, "**/settings")
+	actions.NavigateToAIProvider(t, page)
 
 	heading := components.GetHeading(t, page)
-	if heading != "Settings" {
-		t.Errorf("expected heading 'Settings', got %q", heading)
+	if heading != "AI Provider" {
+		t.Errorf("expected heading 'AI Provider', got %q", heading)
+	}
+}
+
+// LegacySettingsRedirects keeps old bookmarks to /settings working.
+func LegacySettingsRedirects(t *testing.T) {
+	page := components.NewPage(t)
+
+	components.NavigateTo(t, page, "/settings")
+	components.WaitForURL(t, page, "**/profile/ai")
+
+	heading := components.GetHeading(t, page)
+	if heading != "AI Provider" {
+		t.Errorf("expected /settings to land on 'AI Provider', got %q", heading)
 	}
 }
 
@@ -89,13 +97,13 @@ func AIFormWithoutConfig(t *testing.T) {
 	components.WaitForURL(t, page, "**/decks/new**")
 
 	errMsg := components.GetFormError(t, page)
-	if !strings.Contains(errMsg, "Settings") {
-		t.Errorf("expected error to mention Settings, got %q", errMsg)
+	if !strings.Contains(errMsg, "AI Provider") {
+		t.Errorf("expected error to point at AI Provider, got %q", errMsg)
 	}
 
-	settingsCount, _ := page.Locator(".form-error a[href='/settings']").Count()
+	settingsCount, _ := page.Locator(".form-error a[href='/profile/ai']").Count()
 	if settingsCount == 0 {
-		t.Error("expected Settings link in error box")
+		t.Error("expected AI Provider link in error box")
 	}
 }
 
@@ -107,7 +115,7 @@ func SettingsValidation(t *testing.T) {
 	page := components.NewPage(t)
 	actions.ResetLLMSettings(t)
 
-	components.NavigateTo(t, page, "/settings")
+	components.NavigateTo(t, page, "/profile/ai")
 	actions.SelectProvider(t, page, "custom")
 	actions.ClearField(t, page, "input[name=base_url]")
 	actions.ClearField(t, page, "input[name=model]")
@@ -128,7 +136,7 @@ func PresetPrefillsBaseURLAndModel(t *testing.T) {
 	page := components.NewPage(t)
 	actions.ResetLLMSettings(t)
 
-	components.NavigateTo(t, page, "/settings")
+	components.NavigateTo(t, page, "/profile/ai")
 
 	baseURL := components.GetInputValue(t, page, "input[name=base_url]")
 	if baseURL == "" {
@@ -147,7 +155,7 @@ func PresetSaveNeedsOnlyAKey(t *testing.T) {
 	page := components.NewPage(t)
 	actions.ResetLLMSettings(t)
 
-	components.NavigateTo(t, page, "/settings")
+	components.NavigateTo(t, page, "/profile/ai")
 	actions.SelectProvider(t, page, "gemini")
 	actions.ClearField(t, page, "input[name=base_url]")
 	actions.ClearField(t, page, "input[name=model]")

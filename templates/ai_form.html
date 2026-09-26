@@ -3,7 +3,7 @@
     <h1>{{.Title}}</h1>
 </div>
 
-{{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}} <a href="/settings">Settings</a></div>{{end}}{{end}}
+{{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}} <a href="/profile/ai">AI Provider</a></div>{{end}}{{end}}
 
 <form method="POST" action="/decks/new-ai">
     <div>

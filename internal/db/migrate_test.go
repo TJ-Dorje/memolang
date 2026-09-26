@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const latestVersion = 3
+const latestVersion = 4
 
 // preAuthDB builds a database the way the pre-auth schema.sql left it: no
 // user_version, decks without an owner, global settings. withData adds one
@@ -235,6 +235,9 @@ func TestOpenBaselinesPostAuthDB(t *testing.T) {
 	database := openOrFail(t, path)
 	mustExec(t, database, "INSERT INTO users (id, email) VALUES (1, 'a@example.com')")
 	mustExec(t, database, "INSERT INTO decks (id, user_id, name) VALUES (1, 1, 'French')")
+	// Wind back to what the post-auth schema.sql produced: no later columns,
+	// no recorded version.
+	mustExec(t, database, "ALTER TABLE users DROP COLUMN display_name")
 	mustExec(t, database, "PRAGMA user_version = 0")
 	database.Close()
 
@@ -244,5 +247,9 @@ func TestOpenBaselinesPostAuthDB(t *testing.T) {
 	}
 	if count(t, again, "SELECT COUNT(*) FROM decks WHERE user_id = 1") != 1 {
 		t.Error("existing deck changed by baselining")
+	}
+	// Baselined at 3, so the migrations after it still ran.
+	if count(t, again, "SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'display_name'") != 1 {
+		t.Error("users.display_name missing: migrations after the baseline did not run")
 	}
 }

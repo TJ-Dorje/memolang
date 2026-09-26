@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"html/template"
+	"strings"
 
 	"memolang/internal/handlers"
 	"memolang/internal/middleware"
@@ -15,6 +16,9 @@ func NewRouter(database *sql.DB) *gin.Engine {
 	r.SetFuncMap(template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
+		// hasPrefix lets the profile side menu mark its section active on the
+		// POST paths below it too, where a rejected form re-renders.
+		"hasPrefix": strings.HasPrefix,
 	})
 	r.LoadHTMLGlob("templates/*.html")
 	r.Static("/static", "./static")
@@ -59,9 +63,21 @@ func NewRouter(database *sql.DB) *gin.Engine {
 		protected.POST("/cards/:id/edit", h.UpdateCard)
 		protected.POST("/cards/:id/delete", h.DeleteCard)
 
-		protected.GET("/settings", h.SettingsPage)
-		protected.POST("/settings", h.SaveSettings)
-		protected.POST("/settings/test", h.TestLLMConnection)
+		// Everything about the account lives under /profile, reached from the
+		// account menu in the nav.
+		protected.GET("/profile", h.ProfilePage)
+		protected.POST("/profile", h.UpdateProfile)
+
+		protected.GET("/profile/security", h.SecurityPage)
+		protected.POST("/profile/security/password", h.ChangePassword)
+		protected.POST("/profile/security/sessions", h.SignOutOtherSessions)
+		protected.POST("/profile/security/delete", h.DeleteAccount)
+
+		protected.GET("/profile/ai", h.SettingsPage)
+		protected.POST("/profile/ai", h.SaveSettings)
+		protected.POST("/profile/ai/test", h.TestLLMConnection)
+
+		protected.GET("/settings", h.LegacySettingsRedirect)
 	}
 
 	return r

@@ -98,7 +98,7 @@ After calling `Update`, persist the result with `models.UpdateCardSRS(...)`.
 
 ### Database schema (7 tables)
 
-- `users` — email (UNIQUE, `COLLATE NOCASE`), password_hash (bcrypt; empty is reserved for future OAuth-only accounts)
+- `users` — email (UNIQUE, `COLLATE NOCASE`), password_hash (bcrypt; empty is reserved for future OAuth-only accounts), display_name (optional; `User.Name()` falls back to email)
 - `user_sessions` — login sessions: token (PK), user_id, expires_at
 - `decks` — user_id (owner), name, mode (`srs`|`linear`)
 - `cards` — front, back, example, tags, SM-2 fields (interval, ease, repetitions, due_date)

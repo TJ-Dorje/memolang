@@ -30,14 +30,22 @@
             </form>
 
             {{if .User}}
-            <a href="/settings">Settings</a>
-            <span class="nav-user">{{.User.Email}}</span>
-            <form method="POST" action="/logout" class="nav-logout">
-                {{/* No type="submit": submit is the in-form default, and leaving
-                     the attribute off keeps page-wide button[type=submit]
-                     selectors pointing at the page's own form. */}}
-                <button class="btn">Log Out</button>
-            </form>
+            {{/* Native <details>: the browser opens and closes it, keyboard
+                 included, with no JavaScript. static/menu.js only adds
+                 close-on-outside-click and Escape. */}}
+            <details class="account-menu">
+                <summary class="nav-user">{{.User.Name}}</summary>
+                <div class="account-menu-list">
+                    <a href="/profile">Profile</a>
+                    <form method="POST" action="/logout" class="nav-logout">
+                        {{/* No type="submit": submit is the in-form default, and
+                             leaving the attribute off keeps page-wide
+                             button[type=submit] selectors pointing at the
+                             page's own form. */}}
+                        <button class="btn">Log Out</button>
+                    </form>
+                </div>
+            </details>
             {{else}}
             <a href="/login">Log In</a>
             <a href="/register">Register</a>
@@ -57,6 +65,7 @@
     <footer>
         <p>MemoLang &copy; 2026 — Learn smarter.</p>
     </footer>
+    <script src="/static/menu.js"></script>
 </body>
 </html>
 {{end}}

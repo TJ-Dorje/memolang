@@ -17,8 +17,8 @@ func (h *Handler) SettingsPage(c *gin.Context) {
 
 	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
-		h.render(c, http.StatusOK, "settings.html", PageData{
-			Title: "Settings",
+		h.render(c, http.StatusOK, "profile_ai.html", PageData{
+			Title: "AI Provider",
 			Flash: h.getFlash(c),
 			Data:  SettingsData{Error: "Failed to load settings: " + err.Error()},
 		})
@@ -32,8 +32,8 @@ func (h *Handler) SettingsPage(c *gin.Context) {
 
 	provider, baseURL, model := presetDefaults(cfg.Provider, cfg.BaseURL, cfg.Model)
 
-	h.render(c, http.StatusOK, "settings.html", PageData{
-		Title: "Settings",
+	h.render(c, http.StatusOK, "profile_ai.html", PageData{
+		Title: "AI Provider",
 		Flash: h.getFlash(c),
 		Data: SettingsData{
 			Provider:  provider,
@@ -134,7 +134,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 		}
 	}
 
-	h.redirectWithFlash(c, "/settings", "Settings saved.")
+	h.redirectWithFlash(c, "/profile/ai", "Settings saved.")
 }
 
 // settingsError re-renders the form with a message. It reads back whether a
@@ -143,8 +143,8 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 // though an existing key had disappeared, hiding the "Clear saved key" box.
 func (h *Handler) settingsError(c *gin.Context, userID int64, provider, baseURL, model, msg string) {
 	savedKey, _ := models.GetSetting(h.DB, userID, "llm.api_key")
-	h.render(c, http.StatusOK, "settings.html", PageData{
-		Title: "Settings",
+	h.render(c, http.StatusOK, "profile_ai.html", PageData{
+		Title: "AI Provider",
 		Data: SettingsData{
 			Provider:  provider,
 			BaseURL:   baseURL,
@@ -162,13 +162,13 @@ func (h *Handler) TestLLMConnection(c *gin.Context) {
 
 	cfg, err := ai.LoadConfig(h.DB, userID)
 	if err != nil {
-		h.redirectWithFlash(c, "/settings", "Connection failed: "+err.Error())
+		h.redirectWithFlash(c, "/profile/ai", "Connection failed: "+err.Error())
 		return
 	}
 
 	provider, err := ai.New(cfg)
 	if err != nil {
-		h.redirectWithFlash(c, "/settings", "Connection failed: "+err.Error())
+		h.redirectWithFlash(c, "/profile/ai", "Connection failed: "+err.Error())
 		return
 	}
 
@@ -180,14 +180,14 @@ func (h *Handler) TestLLMConnection(c *gin.Context) {
 	// servers that accept ids they do not advertise.
 	var notListed *ai.ModelNotListedError
 	if errors.As(err, &notListed) {
-		h.redirectWithFlash(c, "/settings", "Warning: "+notListed.Error())
+		h.redirectWithFlash(c, "/profile/ai", "Warning: "+notListed.Error())
 		return
 	}
 
 	if err != nil {
-		h.redirectWithFlash(c, "/settings", "Connection failed: "+err.Error())
+		h.redirectWithFlash(c, "/profile/ai", "Connection failed: "+err.Error())
 		return
 	}
 
-	h.redirectWithFlash(c, "/settings", fmt.Sprintf("Connection OK — %s / %s", cfg.Provider, cfg.Model))
+	h.redirectWithFlash(c, "/profile/ai", fmt.Sprintf("Connection OK — %s / %s", cfg.Provider, cfg.Model))
 }

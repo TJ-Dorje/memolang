@@ -51,6 +51,13 @@ func loginThrough(t *testing.T, page playwright.Page, email, password string) {
 	}
 }
 
+// logOutThrough uses the real control: Log Out lives in the account menu.
+func logOutThrough(t *testing.T, page playwright.Page) {
+	t.Helper()
+	components.ClickAccountMenuItem(t, page, "Log Out")
+	components.WaitForURL(t, page, "**/login")
+}
+
 func Register(t *testing.T) {
 	page := helpers.NewAnonymousPage(t)
 	email := uniqueEmail("register")
@@ -70,9 +77,7 @@ func Logout(t *testing.T) {
 	registerThrough(t, page, uniqueEmail("logout"), "supersecret")
 	components.WaitForURL(t, page, configuration.BaseURL+"/")
 
-	if err := components.ClickButton(page, "nav button:has-text('Log Out')"); err != nil {
-		t.Fatal(err)
-	}
+	logOutThrough(t, page)
 	components.WaitForURL(t, page, "**/login")
 
 	// The session is gone, so a protected route bounces back to login.
@@ -86,9 +91,7 @@ func LoginWrongPassword(t *testing.T) {
 
 	registerThrough(t, page, email, "supersecret")
 	components.WaitForURL(t, page, configuration.BaseURL+"/")
-	if err := components.ClickButton(page, "nav button:has-text('Log Out')"); err != nil {
-		t.Fatal(err)
-	}
+	logOutThrough(t, page)
 	components.WaitForURL(t, page, "**/login")
 
 	loginThrough(t, page, email, "not-the-password")
@@ -108,9 +111,7 @@ func LoginEmailCaseInsensitive(t *testing.T) {
 
 	registerThrough(t, page, email, "supersecret")
 	components.WaitForURL(t, page, configuration.BaseURL+"/")
-	if err := components.ClickButton(page, "nav button:has-text('Log Out')"); err != nil {
-		t.Fatal(err)
-	}
+	logOutThrough(t, page)
 	components.WaitForURL(t, page, "**/login")
 
 	loginThrough(t, page, strings.ToUpper(email), "supersecret")

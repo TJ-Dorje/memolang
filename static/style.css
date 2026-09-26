@@ -206,6 +206,46 @@ nav a:not(.logo):hover { color: var(--fg); }
 }
 .nav-user::before { content: "@"; color: var(--purple); }
 
+/* Account menu: a native <details>. The list drops below the summary like a
+   TUI popup — bordered panel, rows invert on hover. */
+.account-menu { position: relative; }
+.account-menu summary {
+    list-style: none;
+    cursor: pointer;
+    max-width: 24ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.account-menu summary::-webkit-details-marker { display: none; }
+.account-menu summary::after { content: " ▾"; color: var(--muted); }
+.account-menu[open] summary::after { content: " ▴"; }
+.account-menu summary:hover,
+.account-menu[open] summary { color: var(--fg); }
+.account-menu-list {
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--sp-2));
+    z-index: 10;
+    min-width: 14rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-bright);
+}
+.account-menu-list > a,
+.account-menu-list .nav-logout .btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    text-align: left;
+    font-size: var(--fs-sm);
+}
+.account-menu-list > a::before { content: "› "; color: var(--muted); }
+nav .account-menu-list > a:hover { background: var(--fg); color: var(--bg); }
+.account-menu-list .nav-logout { border-top: 1px solid var(--border); }
+.account-menu-list .nav-logout .btn { border: none; min-height: 0; }
+
 /* Theme switcher: a segmented [A|L|D] cell group. Overrides the global
    `form { flex-direction: column }` rule. */
 .theme-toggle {
@@ -750,10 +790,58 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--blue); }
     font-weight: 700;
 }
 
+/* ── Profile: side menu + section body ── */
+.profile-layout {
+    display: grid;
+    grid-template-columns: 12rem 1fr;
+    gap: var(--sp-6);
+    align-items: start;
+}
+.profile-nav {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+}
+.profile-nav a {
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--fs-sm);
+    color: var(--muted);
+    text-decoration: none;
+}
+.profile-nav a + a { border-top: 1px solid var(--border); }
+.profile-nav a:hover { color: var(--fg); background: var(--bg-hover); }
+.profile-nav a.active { background: var(--blue); color: var(--bg); font-weight: 700; }
+.profile-body { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.profile-body h2 { font-size: var(--fs-md); margin-top: var(--sp-3); }
+.profile-body h2:first-child { margin-top: 0; }
+.profile-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--sp-2) var(--sp-4);
+    font-size: var(--fs-sm);
+}
+.profile-facts dt { color: var(--muted); }
+.profile-facts dd { color: var(--purple); }
+.session-count { font-size: var(--fs-sm); color: var(--fg-dim); }
+.danger-zone {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    margin-top: var(--sp-4);
+    padding: var(--sp-4);
+    border: 1px solid var(--red);
+}
+.danger-zone h2 { color: var(--red); margin-top: 0; }
+.danger-zone p { font-size: var(--fs-sm); color: var(--fg-dim); }
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
     nav { flex-wrap: wrap; height: auto; padding: var(--sp-2) 0; gap: var(--sp-2); }
-    .nav-user { display: none; }
+    .account-menu summary { max-width: 16ch; }
+    .profile-layout { grid-template-columns: 1fr; gap: var(--sp-4); }
+    .profile-nav { flex-direction: row; }
+    .profile-nav a { flex: 1; text-align: center; }
+    .profile-nav a + a { border-top: none; border-left: 1px solid var(--border); }
     .mc-options { grid-template-columns: 1fr; }
     .session-card { padding: var(--sp-5) var(--sp-3) var(--sp-4); min-height: 240px; }
     .session-card .front-text { font-size: var(--fs-xl); }

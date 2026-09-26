@@ -9,19 +9,25 @@ import (
 	playwright "github.com/playwright-community/playwright-go"
 )
 
-func NavigateToSettings(t *testing.T, page playwright.Page) {
+// NavigateToAIProvider takes the real route: account menu → Profile → the
+// profile side menu's AI Provider entry.
+func NavigateToAIProvider(t *testing.T, page playwright.Page) {
 	t.Helper()
-	if err := page.Locator("nav a:has-text('Settings')").Click(); err != nil {
+	components.ClickAccountMenuItem(t, page, "Profile")
+	if err := page.WaitForURL("**/profile"); err != nil {
 		t.Fatal(err)
 	}
-	if err := page.WaitForURL("**/settings"); err != nil {
+	if err := page.Locator(".profile-nav a:has-text('AI Provider')").Click(); err != nil {
+		t.Fatal(err)
+	}
+	if err := page.WaitForURL("**/profile/ai"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func SaveSettings(t *testing.T, page playwright.Page, provider, baseURL, model, apiKey string) {
 	t.Helper()
-	if _, err := page.Goto(configuration.BaseURL + "/settings"); err != nil {
+	if _, err := page.Goto(configuration.BaseURL + "/profile/ai"); err != nil {
 		t.Fatal(err)
 	}
 	values := []string{provider}
@@ -46,7 +52,7 @@ func SaveSettings(t *testing.T, page playwright.Page, provider, baseURL, model, 
 	if err := components.ClickButton(page, "button:has-text('Save')"); err != nil {
 		t.Fatal(err)
 	}
-	if err := page.WaitForURL("**/settings"); err != nil {
+	if err := page.WaitForURL("**/profile/ai"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -56,7 +62,7 @@ func TestLLMConnection(t *testing.T, page playwright.Page) {
 	if err := components.ClickButton(page, "button:has-text('Test Connection')"); err != nil {
 		t.Fatal(err)
 	}
-	if err := page.WaitForURL("**/settings"); err != nil {
+	if err := page.WaitForURL("**/profile/ai"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -106,7 +112,7 @@ func SubmitSettings(t *testing.T, page playwright.Page) {
 	if err := components.ClickButton(page, "button:has-text('Save')"); err != nil {
 		t.Fatal(err)
 	}
-	if err := page.WaitForURL("**/settings"); err != nil {
+	if err := page.WaitForURL("**/profile/ai"); err != nil {
 		t.Fatal(err)
 	}
 }
