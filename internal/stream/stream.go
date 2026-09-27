@@ -29,6 +29,10 @@ type Broker interface {
 	// text as it arrives, until the producer finishes (returning its error),
 	// fn fails, or ctx ends. found is false when key is not known.
 	Follow(ctx context.Context, key string, fn func(chunk string) error) (found bool, err error)
+	// Exists reports whether key is known (in progress, or finished within
+	// the retention window), so a page can decide to stream or redirect
+	// before it writes anything.
+	Exists(key string) bool
 }
 
 // retainFinished is how long a finished entry stays followable. It covers a
@@ -70,6 +74,8 @@ func (m *Memory) get(key string) *entry {
 	defer m.mu.Unlock()
 	return m.entries[key]
 }
+
+func (m *Memory) Exists(key string) bool { return m.get(key) != nil }
 
 func (m *Memory) Publish(key, chunk string) {
 	e := m.get(key)

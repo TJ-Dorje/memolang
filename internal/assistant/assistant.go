@@ -4,7 +4,6 @@
 package assistant
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -24,10 +23,6 @@ var ErrBusy = errors.New("a reply is still being written")
 // ErrEmptyQuestion is returned for a blank question.
 var ErrEmptyQuestion = errors.New("empty question")
 
-// DefaultTimeout bounds one reply. Generous, because a local model may first
-// have to load its weights.
-const DefaultTimeout = 3 * time.Minute
-
 // maxHistory is how many earlier messages are sent back as context. Older
 // turns are dropped so a long conversation doesn't grow the cost of every
 // new question without limit.
@@ -39,11 +34,16 @@ type Service struct {
 	Broker stream.Broker
 	// Provider returns the user's configured LLM. Tests swap in a fake.
 	Provider func(db *sql.DB, userID int64) (ai.Provider, error)
-	Timeout  time.Duration
+	// IdleTimeout and MaxDuration bound each LLM call; see watchdog.go.
+	IdleTimeout time.Duration
+	MaxDuration time.Duration
 }
 
 func New(db *sql.DB, broker stream.Broker) *Service {
-	return &Service{DB: db, Broker: broker, Provider: userProvider, Timeout: DefaultTimeout}
+	return &Service{
+		DB: db, Broker: broker, Provider: userProvider,
+		IdleTimeout: DefaultIdleTimeout, MaxDuration: DefaultMaxDuration,
+	}
 }
 
 func userProvider(db *sql.DB, userID int64) (ai.Provider, error) {
@@ -105,15 +105,19 @@ func (s *Service) Ask(userID int64, open func() (int64, error), system, question
 }
 
 // generate runs detached from any request: its context is its own, so a
-// closed tab neither cancels the call nor loses the reply.
+// closed tab neither cancels the call nor loses the reply. The watchdog ends
+// it only when the model goes quiet, reasoning counting as output.
 func (s *Service) generate(provider ai.Provider, req ai.ChatRequest, replyID int64, key string) {
-	ctx, cancel := context.WithTimeout(context.Background(), s.Timeout)
-	defer cancel()
+	w := newWatchdog(s.IdleTimeout, s.MaxDuration)
+	defer w.Close()
 
-	text, err := provider.Chat(ctx, req, func(chunk string) error {
+	req.OnThinking = func(string) { w.Alive() }
+	text, err := provider.Chat(w.ctx, req, func(chunk string) error {
+		w.Alive()
 		s.Broker.Publish(key, chunk)
 		return nil
 	})
+	err = w.explain(err)
 
 	status := "done"
 	if err != nil {

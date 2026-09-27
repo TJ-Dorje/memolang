@@ -75,8 +75,7 @@ func FakeLLMHandler() http.Handler {
 			})
 			writeCompletion(w, req.Stream, "```json\n"+string(spec)+"\n```")
 		case strings.Contains(system, "You are a flashcard generator"):
-			cards, _ := json.Marshal(FakeCards)
-			writeCompletion(w, req.Stream, string(cards))
+			streamCards(w, req.last(), !strings.HasSuffix(system, "/no_think"))
 		default:
 			streamChat(w, req.last())
 		}
@@ -129,8 +128,11 @@ func streamChat(w http.ResponseWriter, last string) {
 		fmt.Fprint(w, "data: [DONE]\n\n")
 		w.(http.Flusher).Flush()
 		return
+	case strings.Contains(last, FakeFailTrigger):
+		streamPlanFor(w, FakeFailingPrompt)
+		return
 	case strings.Contains(last, FakePlanTrigger):
-		streamPlan(w)
+		streamPlanFor(w, FakeDeckPrompt)
 		return
 	}
 	// Leading and trailing blank lines, as Qwen3 models produce, which the
@@ -148,10 +150,12 @@ func streamChat(w http.ResponseWriter, last string) {
 // streamPlan replies like a deck builder with everything it needs: a short
 // sentence, then the plan block — its opening marker split across chunks,
 // as a real stream may split it, so the page's filter is exercised.
-func streamPlan(w http.ResponseWriter) {
+// streamPlanFor is streamPlan with a chosen generation prompt; the deck
+// builder's fake uses FakeFailingPrompt to make generation fail.
+func streamPlanFor(w http.ResponseWriter, prompt string) {
 	spec, _ := json.Marshal(map[string]any{
 		"name": FakeDeckName, "language": FakeDeckLanguage,
-		"prompt": FakeDeckPrompt, "count": FakeDeckCount, "mode": FakePlanMode,
+		"prompt": prompt, "count": FakeDeckCount, "mode": FakePlanMode,
 	})
 	// The pause keeps the reply in progress when the page loads, so the plan
 	// really streams through the page's filter rather than being read back
@@ -168,6 +172,53 @@ func streamPlan(w http.ResponseWriter) {
 func sendChunk(w http.ResponseWriter, text string) {
 	chunk, _ := json.Marshal(map[string]any{
 		"choices": []any{map[string]any{"delta": map[string]string{"content": text}}},
+	})
+	fmt.Fprintf(w, "data: %s\n\n", chunk)
+	w.(http.Flusher).Flush()
+}
+
+// FakeFailTrigger in the learner's message makes the fake deck builder
+// propose a plan whose generation then fails (see FakeFailingPrompt).
+const FakeFailTrigger = "doomed"
+
+// FakeFailingPrompt, in a plan, makes the fake generator answer with no
+// cards at all.
+const FakeFailingPrompt = "A topic the generator refuses."
+
+// streamCards answers a card-generation request like a thinking model on
+// LM Studio: reasoning first (unless the request asked it not to think),
+// then the JSON array split mid-card, with a pause after the first card so
+// a test can see it on the page before the rest arrives.
+func streamCards(w http.ResponseWriter, last string, thinking bool) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	if strings.Contains(last, FakeFailingPrompt) {
+		// Paused, so the failure lands while the progress page is open. An
+		// instant failure deletes the empty deck before the page loads, and
+		// the page then sends the learner straight back to the chat.
+		time.Sleep(FakeLLMPause)
+		sendChunk(w, "Sorry, I can't make flashcards about that.")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+		w.(http.Flusher).Flush()
+		return
+	}
+	if thinking {
+		sendReasoning(w, "The learner wants travel phrases. ")
+		sendReasoning(w, "Twenty would be too many for a test.")
+	}
+
+	cards, _ := json.Marshal(FakeCards)
+	text := "\n\n" + string(cards)
+	firstCard := strings.Index(text, "},") + 1
+	sendChunk(w, text[:firstCard+10]) // the first card, and a little of the second
+	time.Sleep(FakeLLMPause)
+	sendChunk(w, text[firstCard+10:])
+	fmt.Fprint(w, "data: [DONE]\n\n")
+	w.(http.Flusher).Flush()
+}
+
+func sendReasoning(w http.ResponseWriter, text string) {
+	chunk, _ := json.Marshal(map[string]any{
+		"choices": []any{map[string]any{"delta": map[string]string{"reasoning_content": text}}},
 	})
 	fmt.Fprintf(w, "data: %s\n\n", chunk)
 	w.(http.Flusher).Flush()

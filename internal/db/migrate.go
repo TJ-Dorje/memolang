@@ -33,6 +33,7 @@ var migrations = []migration{
 	{version: 5, file: "0005_tutor.sql"},
 	{version: 6, file: "0006_conversations.sql"},
 	{version: 7, file: "0007_llm_providers.sql"},
+	{version: 8, file: "0008_disable_thinking.sql"},
 }
 
 // authVersion is where a database created by the post-auth schema.sql, before

@@ -48,8 +48,7 @@ func NewRouter(database *sql.DB) *gin.Engine {
 		protected.POST("/decks/new/assistant/plan", h.PlanDeckBuilder)
 		protected.GET("/decks/new/assistant/summary", h.DeckBuilderSummary)
 		protected.POST("/decks/new/assistant/generate", h.GenerateFromPlan)
-		protected.GET("/decks/new-ai/processing", h.AIProcessing)
-		protected.GET("/decks/new-ai/execute", h.AIExecute)
+		protected.GET("/decks/:id/generating", h.DeckGenerationPage)
 
 		protected.GET("/decks/:id", h.DeckDetail)
 		protected.GET("/decks/:id/edit", h.EditDeckForm)

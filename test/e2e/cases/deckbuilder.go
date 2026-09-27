@@ -21,16 +21,32 @@ func sendToBuilder(t *testing.T, page playwright.Page, text string) {
 	waitAttached(t, page, ".chat-done")
 }
 
-// generateAndCheckDeck presses Generate Deck on the current plan card and
-// checks the deck that comes out, returning its page.
+// generateAndCheckDeck presses Generate Deck on the current plan card, checks
+// the progress page streams — the first card on the page while the rest are
+// still coming — then opens the deck and checks it.
 func generateAndCheckDeck(t *testing.T, page playwright.Page, wantMode string) {
 	t.Helper()
 	click(t, page, ".plan-card button:has-text('Generate Deck')")
-	components.WaitForURL(t, page, "**/decks/*")
+	components.WaitForURLCommitted(t, page, "**/decks/*/generating")
 
-	if flash := components.GetFlash(t, page); flash != fmt.Sprintf("Generated %d cards.", len(helpers.FakeCards)) {
-		t.Errorf("flash = %q", flash)
+	// Mid-stream: the fake pauses after the first card.
+	if err := page.Locator(".gen-card").First().WaitFor(); err != nil {
+		t.Fatalf("first card never appeared: %v", err)
 	}
+	if n := components.CountLocators(t, page, ".gen-result"); n != 0 {
+		t.Fatal("generation already finished: the progress page was not streamed")
+	}
+
+	waitAttached(t, page, ".gen-result")
+	if done := textOf(t, page, ".gen-done"); done != fmt.Sprintf("Generated %d cards.", len(helpers.FakeCards)) {
+		t.Errorf("result = %q", done)
+	}
+	if n := components.CountLocators(t, page, ".gen-card"); n != len(helpers.FakeCards) {
+		t.Errorf("%d card rows streamed, want %d", n, len(helpers.FakeCards))
+	}
+
+	click(t, page, "a:has-text('Open Deck')")
+	components.WaitForURL(t, page, "**/decks/*")
 	if heading := components.GetHeading(t, page); heading != helpers.FakeDeckName {
 		t.Errorf("deck heading = %q, want %q", heading, helpers.FakeDeckName)
 	}
@@ -230,4 +246,95 @@ func DeckBuilderShowsProviderError(t *testing.T) {
 	if flash := components.GetFlash(t, page); !strings.Contains(flash, "Connection failed") {
 		t.Errorf("Test Connection flash = %q, want a failure", flash)
 	}
+}
+
+// DeckGenerationShowsThinking: a thinking model reasons before the first
+// card; the page says so instead of looking stuck.
+func DeckGenerationShowsThinking(t *testing.T) {
+	page, email := freshUser(t, "genthink")
+	useFakeLLM(t, email)
+	components.NavigateTo(t, page, "/decks/new/assistant")
+	sendToBuilder(t, page, "Spanish, I'm "+helpers.FakePlanTrigger)
+
+	click(t, page, ".plan-card button:has-text('Generate Deck')")
+	components.WaitForURLCommitted(t, page, "**/decks/*/generating")
+	waitAttached(t, page, ".gen-result")
+
+	if n := components.CountLocators(t, page, ".gen-thinking"); n != 1 {
+		t.Errorf("%d thinking notes, want 1", n)
+	}
+}
+
+// DisableThinkingSkipsReasoning: with the provider's switch on, the request
+// carries /no_think, and the fake — like Qwen3 — skips its reasoning.
+func DisableThinkingSkipsReasoning(t *testing.T) {
+	page, email := freshUser(t, "gennothink")
+	useFakeLLM(t, email)
+
+	// Turn the switch on through the real provider form.
+	components.NavigateTo(t, page, "/profile/ai")
+	click(t, page, ".provider-card a:has-text('Edit')")
+	if err := page.Locator("input[name=disable_thinking]").Check(); err != nil {
+		t.Fatal(err)
+	}
+	click(t, page, "form button:has-text('Save')")
+	components.WaitForURL(t, page, "**/profile/ai")
+	if facts := textOf(t, page, ".provider-card .plan-facts"); !strings.Contains(facts, "Thinking") {
+		t.Errorf("provider card does not show thinking disabled: %q", facts)
+	}
+
+	components.NavigateTo(t, page, "/decks/new/assistant")
+	sendToBuilder(t, page, "Spanish, I'm "+helpers.FakePlanTrigger)
+	click(t, page, ".plan-card button:has-text('Generate Deck')")
+	components.WaitForURLCommitted(t, page, "**/decks/*/generating")
+	waitAttached(t, page, ".gen-result")
+
+	if n := components.CountLocators(t, page, ".gen-thinking"); n != 0 {
+		t.Error("the model still reasoned with thinking disabled")
+	}
+	if n := components.CountLocators(t, page, ".gen-card"); n != len(helpers.FakeCards) {
+		t.Errorf("%d cards, want %d", n, len(helpers.FakeCards))
+	}
+}
+
+// DeckGenerationFailureNotedInChat: when nothing usable comes back, no empty
+// deck is left behind and the reason stays in the chat, next to the plan
+// card that can be generated again.
+func DeckGenerationFailureNotedInChat(t *testing.T) {
+	page, email := freshUser(t, "genfail")
+	useFakeLLM(t, email)
+	components.NavigateTo(t, page, "/decks/new/assistant")
+	sendToBuilder(t, page, "Spanish, "+helpers.FakeFailTrigger)
+
+	click(t, page, ".plan-card button:has-text('Generate Deck')")
+	components.WaitForURLCommitted(t, page, "**/decks/*/generating")
+	waitAttached(t, page, ".gen-result")
+
+	if msg := textOf(t, page, ".gen-result .form-error"); !strings.Contains(msg, "no complete cards") {
+		t.Errorf("failure = %q", msg)
+	}
+
+	click(t, page, "a:has-text('Back to the Assistant')")
+	components.WaitForURL(t, page, "**/decks/new/assistant")
+	if note := textOf(t, page, ".chat-assistant:last-of-type .chat-text"); !strings.Contains(note, "couldn't generate the cards") {
+		t.Errorf("chat note = %q", note)
+	}
+	if n := components.CountLocators(t, page, ".plan-card button:has-text('Generate Deck')"); n != 1 {
+		t.Error("the plan can no longer be generated again")
+	}
+
+	components.NavigateTo(t, page, "/")
+	if strings.Contains(components.GetBody(t, page), helpers.FakeDeckName) {
+		t.Error("an empty deck was left on the dashboard")
+	}
+}
+
+// GenerationPageWithoutDeckGoesToChat: a generation that failed before its
+// page loaded has already removed the empty deck; the page sends the learner
+// to the chat, where the reason was noted — and it never shows anything for a
+// deck that isn't theirs.
+func GenerationPageWithoutDeckGoesToChat(t *testing.T) {
+	page := components.NewPage(t)
+	components.NavigateTo(t, page, "/decks/999999/generating")
+	components.WaitForURL(t, page, "**/decks/new/assistant")
 }

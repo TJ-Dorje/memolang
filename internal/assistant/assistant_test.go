@@ -26,9 +26,6 @@ type fakeProvider struct {
 	release chan struct{}
 }
 
-func (f *fakeProvider) GenerateCards(context.Context, string, string) ([]ai.CardData, error) {
-	return nil, nil
-}
 func (f *fakeProvider) Ping(context.Context) error { return nil }
 
 func (f *fakeProvider) Chat(ctx context.Context, req ai.ChatRequest, onToken ai.TokenFunc) (string, error) {
@@ -229,14 +226,17 @@ func TestNotConfiguredWritesNothing(t *testing.T) {
 	}
 }
 
-func TestTimeoutEndsReply(t *testing.T) {
+// A model that goes quiet is cut off by the idle limit, and the reason says
+// so rather than a bare "context canceled".
+func TestIdleModelEndsReply(t *testing.T) {
 	p := &fakeProvider{release: make(chan struct{})} // never released
 	f := setup(t, p)
-	f.svc.Timeout = 50 * time.Millisecond
+	f.svc.IdleTimeout = 50 * time.Millisecond
 
 	f.ask(t, "q")
-	if _, err := f.waitReply(t); !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("follower err = %v, want the deadline", err)
+	var idle ErrIdle
+	if _, err := f.waitReply(t); !errors.As(err, &idle) {
+		t.Errorf("follower err = %v, want ErrIdle", err)
 	}
 }
 

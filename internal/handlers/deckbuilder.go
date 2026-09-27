@@ -143,14 +143,17 @@ func (h *Handler) GenerateFromPlan(c *gin.Context) {
 		return
 	}
 
-	spec := current.Spec
-	token := h.storePending(AIFormData{
-		Name:     spec.Name,
-		Language: spec.Language,
-		Prompt:   spec.GenerationPrompt(),
-		Mode:     spec.Mode,
-	})
-	c.Redirect(http.StatusSeeOther, "/decks/new-ai/processing?token="+token)
+	deckID, err := h.Assistant.GenerateDeck(userID, current.Spec)
+	switch {
+	case errors.Is(err, ai.ErrNotConfigured):
+		h.redirectWithFlash(c, deckBuilderURL, "Set up an AI provider first: Profile → AI Providers.")
+		return
+	case err != nil:
+		log.Printf("GenerateFromPlan: %v", err)
+		h.redirectWithFlash(c, deckBuilderURL, "Could not start generating the deck. Try again.")
+		return
+	}
+	c.Redirect(http.StatusSeeOther, generationURL(deckID))
 }
 
 // replyInProgress reports whether the conversation's latest reply is still

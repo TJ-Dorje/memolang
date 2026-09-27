@@ -1010,3 +1010,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--blue); }
     color: var(--muted);
     text-decoration: none;
 }
+
+/* ── Deck generation progress ── */
+.gen-cards { margin-top: var(--sp-4); }
+.gen-thinking { color: var(--muted); font-size: var(--fs-sm); }
+.gen-thinking::before { content: "… "; color: var(--purple); }
+.gen-card { animation: gen-in 0.3s ease-out; }
+@keyframes gen-in { from { opacity: 0; transform: translateY(4px); } }
+.gen-result { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; margin-top: var(--sp-5); }
+.gen-done { color: var(--green); font-weight: 700; }

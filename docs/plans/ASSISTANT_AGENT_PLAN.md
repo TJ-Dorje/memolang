@@ -183,7 +183,7 @@ File: `internal/agent/tools.go` + model queries as needed.
 "not found", never data.
 
 ### T-075: Proposals table + propose tools
-Migration `0008_deck_assistant.sql` (a `deck_assistant` conversation kind with `deck_id`, and the proposals table);
+Migration `0009_deck_assistant.sql` (a `deck_assistant` conversation kind with `deck_id`, and the proposals table);
 `internal/models/proposals.go`.
 **Done when:** propose tools write only to `assistant_proposals`; a model
 test proves no `cards` row changes during a run.

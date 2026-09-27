@@ -53,6 +53,7 @@ func providerView(p models.LLMProvider) ProviderView {
 		ID: p.ID, Name: p.Name, PresetLabel: label,
 		BaseURL: p.BaseURL, Model: p.Model,
 		HasAPIKey: p.APIKey != "", Active: p.Active,
+		DisableThinking: p.DisableThinking,
 	}
 }
 
@@ -72,7 +73,7 @@ func (h *Handler) EditProviderForm(c *gin.Context) {
 	preset, baseURL, model := presetDefaults(p.Preset, p.BaseURL, p.Model)
 	h.renderProviderForm(c, SettingsData{
 		ID: p.ID, Name: p.Name, Provider: preset, BaseURL: baseURL, Model: model,
-		HasAPIKey: p.APIKey != "",
+		HasAPIKey: p.APIKey != "", DisableThinking: p.DisableThinking,
 	})
 }
 
@@ -109,7 +110,7 @@ func (h *Handler) ownedProvider(c *gin.Context) (models.LLMProvider, bool) {
 // providerForm is a submitted provider form, normalised.
 type providerForm struct {
 	name, preset, baseURL, model, apiKey string
-	clearKey                             bool
+	clearKey, disableThinking            bool
 }
 
 func readProviderForm(c *gin.Context) providerForm {
@@ -122,6 +123,8 @@ func readProviderForm(c *gin.Context) providerForm {
 		model:    strings.TrimSpace(c.PostForm("model")),
 		apiKey:   c.PostForm("api_key"),
 		clearKey: c.PostForm("clear_api_key") == "1",
+
+		disableThinking: c.PostForm("disable_thinking") == "1",
 	}
 }
 
@@ -173,7 +176,7 @@ func shortLabel(label string) string {
 func (h *Handler) formError(c *gin.Context, id int64, f providerForm, hasKey bool, msg string) {
 	h.renderProviderForm(c, SettingsData{
 		ID: id, Name: f.name, Provider: f.preset, BaseURL: f.baseURL, Model: f.model,
-		HasAPIKey: hasKey, Error: msg,
+		HasAPIKey: hasKey, DisableThinking: f.disableThinking, Error: msg,
 	})
 }
 
@@ -187,6 +190,7 @@ func (h *Handler) CreateProvider(c *gin.Context) {
 	_, err := models.CreateLLMProvider(h.DB, models.LLMProvider{
 		UserID: currentUserID(c), Name: f.name, Preset: f.preset,
 		BaseURL: f.baseURL, Model: f.model, APIKey: f.apiKey,
+		DisableThinking: f.disableThinking,
 	})
 	if err != nil {
 		h.formError(c, 0, f, false, "Failed to save the provider: "+err.Error())
@@ -217,6 +221,7 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
 	}
 
 	p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey = f.name, f.preset, f.baseURL, f.model, key
+	p.DisableThinking = f.disableThinking
 	if err := models.UpdateLLMProvider(h.DB, p); err != nil {
 		h.formError(c, p.ID, f, p.APIKey != "", "Failed to save the provider: "+err.Error())
 		return

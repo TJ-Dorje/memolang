@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const latestVersion = 7
+const latestVersion = 8
 
 // preAuthDB builds a database the way the pre-auth schema.sql left it: no
 // user_version, decks without an owner, global settings. withData adds one

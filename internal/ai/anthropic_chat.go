@@ -22,8 +22,9 @@ type anthropicStreamRequest struct {
 type anthropicStreamEvent struct {
 	Type  string `json:"type"`
 	Delta struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
+		Type     string `json:"type"`
+		Text     string `json:"text"`
+		Thinking string `json:"thinking"`
 	} `json:"delta"`
 	Error *struct {
 		Message string `json:"message"`
@@ -46,7 +47,7 @@ func (a *anthropic) Chat(ctx context.Context, req ChatRequest, onToken TokenFunc
 		anthropicRequest: anthropicRequest{
 			Model:     a.model,
 			MaxTokens: maxTokens,
-			System:    req.System,
+			System:    systemWith(req.System, a.noThink),
 			Messages:  messages,
 		},
 		Stream: true,
@@ -95,6 +96,10 @@ func (a *anthropic) Chat(ctx context.Context, req ChatRequest, onToken TokenFunc
 			completed = true
 			return errStreamDone
 		case "content_block_delta":
+			if ev.Delta.Type == "thinking_delta" {
+				req.thinking(ev.Delta.Thinking)
+				return nil
+			}
 			if ev.Delta.Type != "text_delta" || ev.Delta.Text == "" {
 				return nil
 			}

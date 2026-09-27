@@ -4,10 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
-	"memolang/internal/ai"
 	"memolang/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -45,33 +43,6 @@ func (h *Handler) NewDeckForm(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, deckBuilderURL)
 }
 
-// pendingAIForm restores a filled AI form by token. ok is false when the
-// token is absent, already consumed, or holds something else. The pending map
-// is shared with the CSV import flow, so the type assertion has to be
-// checked: an import token replayed here would otherwise panic.
-func (h *Handler) pendingAIForm(token string) (AIFormData, bool) {
-	if token == "" {
-		return AIFormData{}, false
-	}
-	v, ok := h.loadPending(token)
-	if !ok {
-		return AIFormData{}, false
-	}
-	form, ok := v.(AIFormData)
-	return form, ok
-}
-
-func (h *Handler) AIProcessing(c *gin.Context) {
-	token := c.Query("token")
-	if token == "" {
-		c.Redirect(http.StatusSeeOther, "/decks/new")
-		return
-	}
-	h.renderWaiting(c, "Generating...",
-		"Asking the AI to generate your cards…", "This may take a minute for large requests.",
-		"/decks/new-ai/execute?token="+token)
-}
-
 // renderWaiting shows the spinner page, which immediately navigates (meta
 // refresh, no JavaScript) to next: a slow GET that does the LLM work. The
 // browser keeps this page on screen until next responds.
@@ -80,81 +51,6 @@ func (h *Handler) renderWaiting(c *gin.Context, title, message, sub, next string
 		Title: title,
 		Data:  WaitingData{Message: message, Sub: sub, Next: next},
 	})
-}
-
-func (h *Handler) AIExecute(c *gin.Context) {
-	userID := currentUserID(c)
-
-	token := c.Query("token")
-	if token == "" {
-		c.Redirect(http.StatusSeeOther, "/decks/new")
-		return
-	}
-
-	// Checked assertion: the pending map is shared with the CSV import flow,
-	// so a replayed import token must not panic here.
-	fd, ok := h.pendingAIForm(token)
-	if !ok {
-		c.Redirect(http.StatusSeeOther, "/decks/new/assistant")
-		return
-	}
-
-	cfg, err := ai.LoadConfig(h.DB, userID)
-	if err != nil {
-		log.Printf("AIExecute: LoadConfig failed: %v", err)
-		h.redirectWithFlash(c, deckBuilderURL, "Failed to load LLM settings: "+err.Error())
-		return
-	}
-
-	provider, err := ai.New(cfg)
-	if err != nil {
-		log.Printf("AIExecute: ai.New failed: %v", err)
-		msg := "LLM configuration error: " + err.Error()
-		if errors.Is(err, ai.ErrNotConfigured) {
-			msg = "Set up an AI provider first: Profile → AI Providers."
-		}
-		h.redirectWithFlash(c, deckBuilderURL, msg)
-		return
-	}
-
-	log.Printf("AIExecute: calling GenerateCards...")
-	cards, err := provider.GenerateCards(c.Request.Context(), fd.Language, fd.Prompt)
-	if err != nil {
-		log.Printf("AIExecute: GenerateCards failed: %v", err)
-		// The plan is still in the chat, so Generate deck can simply be pressed again.
-		h.redirectWithFlash(c, deckBuilderURL, "Card generation failed. Press Generate deck to try again.")
-		return
-	}
-
-	log.Printf("AIExecute: got %d cards", len(cards))
-	if len(cards) == 0 {
-		h.redirectWithFlash(c, deckBuilderURL, "The AI returned no cards. Ask the assistant to adjust the plan, then generate again.")
-		return
-	}
-
-	deck, err := models.CreateDeck(h.DB, userID, fd.Name, fd.Mode)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to create deck")
-		return
-	}
-
-	for _, card := range cards {
-		_, err := models.CreateCard(h.DB, deck.ID, card.Front, card.Back, card.Example, "")
-		if err != nil {
-			log.Printf("failed to insert card %q: %v", card.Front, err)
-		}
-	}
-
-	// The interview that designed this deck is finished; the next "Create
-	// with AI" starts a fresh one.
-	if convID, err := models.FindDeckBuilderConversation(h.DB, userID); err == nil && convID != 0 {
-		if err := models.DeleteConversation(h.DB, userID, convID); err != nil {
-			log.Printf("AIExecute: close deck builder conversation: %v", err)
-		}
-	}
-
-	h.redirectWithFlash(c, fmt.Sprintf("/decks/%d", deck.ID),
-		fmt.Sprintf("Generated %d cards.", len(cards)))
 }
 
 func (h *Handler) CreateDeck(c *gin.Context) {

@@ -282,3 +282,65 @@ func TestReadSSEMultilineDataAndNoTrailingBlank(t *testing.T) {
 		t.Errorf("events = %q", got)
 	}
 }
+
+// Reasoning must reach OnThinking (so callers know a thinking model is
+// working) and never leak into the reply.
+func TestChatReportsThinking(t *testing.T) {
+	openAIStream := `data: {"choices":[{"delta":{"reasoning_content":"Let me think. "}}]}
+
+data: {"choices":[{"delta":{"reasoning":"Still thinking."}}]}
+
+data: {"choices":[{"delta":{"content":"Answer"}}]}
+
+data: [DONE]
+
+`
+	anthropicStream := `event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me think. Still thinking."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Answer"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+`
+	for name, tc := range map[string]struct {
+		stream string
+		build  func(url string) Provider
+	}{
+		"openai":    {openAIStream, func(u string) Provider { return newOpenAICompat(Config{BaseURL: u, Model: "m"}) }},
+		"anthropic": {anthropicStream, func(u string) Provider { return newAnthropic(Config{BaseURL: u, APIKey: "k", Model: "m"}) }},
+	} {
+		srv := sseServer(t, nil, tc.stream)
+		var thought strings.Builder
+		reply, err := tc.build(srv.URL).Chat(context.Background(), ChatRequest{
+			OnThinking: func(c string) { thought.WriteString(c) },
+		}, collect(new([]string)))
+		srv.Close()
+
+		if err != nil || reply != "Answer" {
+			t.Errorf("%s: reply = %q, %v; want just the answer", name, reply, err)
+		}
+		if thought.String() != "Let me think. Still thinking." {
+			t.Errorf("%s: thinking = %q", name, thought.String())
+		}
+	}
+}
+
+func TestDisableThinkingAppendsSwitch(t *testing.T) {
+	for _, disable := range []bool{false, true} {
+		var system string
+		srv := sseServer(t, func(r *http.Request, body map[string]any) {
+			system = body["messages"].([]any)[0].(map[string]any)["content"].(string)
+		}, "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\ndata: [DONE]\n\n")
+
+		p := newOpenAICompat(Config{BaseURL: srv.URL, Model: "m", DisableThinking: disable})
+		p.Chat(context.Background(), ChatRequest{System: "be brief"}, collect(new([]string)))
+		srv.Close()
+
+		if got := strings.HasSuffix(system, "/no_think"); got != disable {
+			t.Errorf("DisableThinking=%v: system prompt %q", disable, system)
+		}
+	}
+}

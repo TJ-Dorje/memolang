@@ -8,22 +8,24 @@ import (
 // LLMProvider is one of a user's saved LLM configurations. At most one per
 // user is Active; the assistant and card generation use that one.
 type LLMProvider struct {
-	ID        int64
-	UserID    int64
-	Name      string
-	Preset    string
-	BaseURL   string
-	Model     string
-	APIKey    string
-	Active    bool
-	CreatedAt time.Time
+	ID      int64
+	UserID  int64
+	Name    string
+	Preset  string
+	BaseURL string
+	Model   string
+	APIKey  string
+	Active  bool
+	// DisableThinking asks the model to skip its reasoning phase.
+	DisableThinking bool
+	CreatedAt       time.Time
 }
 
-const llmProviderColumns = "id, user_id, name, preset, base_url, model, api_key, active, created_at"
+const llmProviderColumns = "id, user_id, name, preset, base_url, model, api_key, active, disable_thinking, created_at"
 
 func scanLLMProvider(row rowScanner) (LLMProvider, error) {
 	var p LLMProvider
-	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Preset, &p.BaseURL, &p.Model, &p.APIKey, &p.Active, &p.CreatedAt)
+	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Preset, &p.BaseURL, &p.Model, &p.APIKey, &p.Active, &p.DisableThinking, &p.CreatedAt)
 	return p, err
 }
 
@@ -78,11 +80,11 @@ func GetActiveLLMProvider(db *sql.DB, userID int64) (*LLMProvider, error) {
 func CreateLLMProvider(db *sql.DB, p LLMProvider) (int64, error) {
 	var id int64
 	err := db.QueryRow(
-		`INSERT INTO llm_providers (user_id, name, preset, base_url, model, api_key, active)
-		 VALUES (?, ?, ?, ?, ?, ?,
+		`INSERT INTO llm_providers (user_id, name, preset, base_url, model, api_key, disable_thinking, active)
+		 VALUES (?, ?, ?, ?, ?, ?, ?,
 		         NOT EXISTS (SELECT 1 FROM llm_providers WHERE user_id = ? AND active = 1))
 		 RETURNING id`,
-		p.UserID, p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey, p.UserID,
+		p.UserID, p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey, p.DisableThinking, p.UserID,
 	).Scan(&id)
 	return id, err
 }
@@ -91,9 +93,9 @@ func CreateLLMProvider(db *sql.DB, p LLMProvider) (int64, error) {
 // so callers decide whether to keep, replace or clear it.
 func UpdateLLMProvider(db *sql.DB, p LLMProvider) error {
 	res, err := db.Exec(
-		`UPDATE llm_providers SET name = ?, preset = ?, base_url = ?, model = ?, api_key = ?
+		`UPDATE llm_providers SET name = ?, preset = ?, base_url = ?, model = ?, api_key = ?, disable_thinking = ?
 		 WHERE id = ? AND user_id = ?`,
-		p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey, p.ID, p.UserID,
+		p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey, p.DisableThinking, p.ID, p.UserID,
 	)
 	if err != nil {
 		return err

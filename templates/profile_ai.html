@@ -32,6 +32,7 @@
                     <dt>Model</dt><dd>{{.Model}}</dd>
                     <dt>Base URL</dt><dd>{{.BaseURL}}</dd>
                     <dt>API key</dt><dd>{{if .HasAPIKey}}saved{{else}}none{{end}}</dd>
+                    {{if .DisableThinking}}<dt>Thinking</dt><dd>disabled</dd>{{end}}
                 </dl>
                 <div class="btn-group">
                     {{if not .Active}}

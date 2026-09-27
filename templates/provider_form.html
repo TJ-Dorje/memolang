@@ -79,6 +79,13 @@
     </div>
 
     <div>
+        <label class="checkbox-label">
+            <input type="checkbox" name="disable_thinking" value="1"{{if .Data.DisableThinking}} checked{{end}}> Disable thinking
+        </label>
+        <small class="hint">For thinking models such as Qwen3: asks them to skip their reasoning phase (sends <code>/no_think</code>), which can make card generation several times faster. Other models may ignore it, or see it as text.</small>
+    </div>
+
+    <div>
         <button type="submit" class="btn btn-primary">Save</button>
     </div>
 </form>

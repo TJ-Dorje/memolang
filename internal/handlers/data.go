@@ -67,15 +67,6 @@ type SessionData struct {
 	AnswerCard models.Card
 }
 
-// AIFormData is a deck to generate, handed from the deck builder's Generate
-// button to the generation step through the pending store.
-type AIFormData struct {
-	Name     string
-	Language string
-	Prompt   string
-	Mode     string
-}
-
 // SettingsData is the data payload for the add/edit provider form. ID is 0
 // for a new provider.
 type SettingsData struct {
@@ -85,6 +76,8 @@ type SettingsData struct {
 	BaseURL   string
 	Model     string
 	HasAPIKey bool
+	// DisableThinking asks thinking models to skip their reasoning phase.
+	DisableThinking bool
 	// EnvKey reports that LLM_API_KEY is set and therefore overrides whatever
 	// is stored, so the form can say so instead of looking out of date.
 	EnvKey bool
@@ -119,13 +112,14 @@ type ProvidersData struct {
 // ProviderView is a saved provider as the list shows it; the key itself is
 // never passed to a template, only whether one is stored.
 type ProviderView struct {
-	ID          int64
-	Name        string
-	PresetLabel string
-	BaseURL     string
-	Model       string
-	HasAPIKey   bool
-	Active      bool
+	ID              int64
+	Name            string
+	PresetLabel     string
+	BaseURL         string
+	Model           string
+	HasAPIKey       bool
+	Active          bool
+	DisableThinking bool
 }
 
 // ProviderOption is an entry in the chat pages' provider switcher.
@@ -224,6 +218,17 @@ var tutorPresetList = []TutorPreset{
 	{"examples", "More examples"},
 	{"mnemonic", "Memory trick"},
 	{"quiz", "Quiz me"},
+}
+
+// GenerationData is the data payload for the deck generation progress page.
+// The streaming handler fills in the outcome before the bottom half renders.
+type GenerationData struct {
+	Deck        models.Deck
+	Saved       int
+	Finished    bool
+	Failed      bool
+	Interrupted bool
+	Note        string
 }
 
 // SessionSummaryData is the data payload for the session summary page.

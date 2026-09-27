@@ -84,3 +84,14 @@ func Goto(t *testing.T, page playwright.Page, url string) {
 		t.Fatal(err)
 	}
 }
+
+// WaitForURLCommitted waits only until navigation to pattern has started.
+// WaitForURL waits for the page's load event, which on a streaming page
+// fires when the stream ends — too late to see it in progress.
+func WaitForURLCommitted(t *testing.T, page playwright.Page, pattern string) {
+	t.Helper()
+	err := page.WaitForURL(pattern, playwright.PageWaitForURLOptions{WaitUntil: playwright.WaitUntilStateCommit})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

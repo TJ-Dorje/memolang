@@ -11,27 +11,19 @@ import (
 	"memolang/internal/models"
 )
 
-// CardData is unchanged from today.
-type CardData struct {
-	Front   string `json:"front"`
-	Back    string `json:"back"`
-	Example string `json:"example"`
-}
-
 // Config holds LLM connection settings loaded from the DB.
 type Config struct {
 	Provider string // "ollama" | "openai" | "anthropic" | "custom"
 	BaseURL  string
 	APIKey   string
 	Model    string
+	// DisableThinking asks the model to skip its reasoning phase (see
+	// noThinkSwitch).
+	DisableThinking bool
 }
 
 // Provider generates flashcards from a language + topic prompt.
 type Provider interface {
-	// GenerateCards returns the generated cards. Implementations must apply
-	// a 3-minute timeout via context.WithTimeout.
-	GenerateCards(ctx context.Context, language, promptText string) ([]CardData, error)
-
 	// Ping performs a minimal request to verify connectivity and auth
 	// (5-second timeout). Used by the settings "Test connection" button.
 	Ping(ctx context.Context) error
@@ -111,6 +103,8 @@ func ConfigOf(p models.LLMProvider) Config {
 		BaseURL:  p.BaseURL,
 		APIKey:   apiKey,
 		Model:    p.Model,
+
+		DisableThinking: p.DisableThinking,
 	}
 }
 

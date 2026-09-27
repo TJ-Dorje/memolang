@@ -1,0 +1,38 @@
+{{/* The deck generation progress page. Streamed in parts by
+     DeckGenerationPage: generating_top, then one _gen_thinking or _gen_card
+     fragment per event as the model produces them, then generating_bottom
+     with the outcome. No JavaScript: the browser renders it as it arrives. */}}
+
+{{define "generating_top"}}
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Creating “{{.Data.Deck.Name}}”</h1>
+</div>
+<p class="hint gen-status">Waiting for the model… A thinking model may reason for a few minutes before the first card appears.</p>
+<div class="card-list gen-cards">
+{{end}}
+
+{{define "_gen_thinking"}}<p class="gen-thinking">Thinking…</p>
+{{end}}
+
+{{define "_gen_card"}}<div class="card-row gen-card"><div><span class="front">{{.Front}}</span> <span class="back">— {{.Back}}</span></div></div>
+{{end}}
+
+{{define "generating_bottom"}}
+</div>
+{{with .Data}}
+<div class="gen-result">
+    {{if .Failed}}
+    <div class="form-error">Couldn't generate the cards: {{.Note}}.</div>
+    <p class="hint">The deck plan is still in the chat — try again, or switch provider there.</p>
+    <a href="/decks/new/assistant" class="btn btn-primary">Back to the Assistant</a>
+    {{else}}
+    <p class="gen-done">Generated {{.Saved}} {{if eq .Saved 1}}card{{else}}cards{{end}}.</p>
+    {{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
+    {{if .Interrupted}}<p class="hint">The progress stream ended before the result — the deck has everything saved so far.</p>{{end}}
+    <a href="/decks/{{.Deck.ID}}" class="btn btn-primary">Open Deck</a>
+    {{end}}
+</div>
+{{end}}
+{{template "_footer" .}}
+{{end}}

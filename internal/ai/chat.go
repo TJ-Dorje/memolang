@@ -23,6 +23,35 @@ type ChatRequest struct {
 	Messages []ChatMessage
 	// MaxTokens caps the reply; 0 means the transport's default.
 	MaxTokens int
+	// OnThinking, when set, receives the model's reasoning as it streams
+	// (reasoning_content / reasoning on OpenAI-style servers, thinking_delta
+	// on Anthropic). It is not part of the reply; callers use it to know a
+	// thinking model is still working rather than stalled.
+	OnThinking func(chunk string)
+}
+
+// thinking reports reasoning to req.OnThinking, if anyone is listening.
+func (req ChatRequest) thinking(chunk string) {
+	if req.OnThinking != nil && chunk != "" {
+		req.OnThinking(chunk)
+	}
+}
+
+// noThinkSwitch is the soft switch Qwen3-style models honour to skip their
+// reasoning phase. Other models may ignore it or read it as text, which is
+// why it is a per-provider opt-in (Config.DisableThinking).
+const noThinkSwitch = "/no_think"
+
+// systemWith returns the system prompt with the no-think switch appended when
+// the provider asks for it.
+func systemWith(system string, disableThinking bool) string {
+	if !disableThinking {
+		return system
+	}
+	if system == "" {
+		return noThinkSwitch
+	}
+	return system + "\n\n" + noThinkSwitch
 }
 
 // TokenFunc receives reply text as the model generates it. Returning an error

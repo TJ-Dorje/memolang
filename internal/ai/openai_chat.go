@@ -15,6 +15,10 @@ type openAIStreamChunk struct {
 	Choices []struct {
 		Delta struct {
 			Content string `json:"content"`
+			// Reasoning, from thinking models: LM Studio and DeepSeek send
+			// reasoning_content, Ollama and OpenRouter send reasoning.
+			ReasoningContent string `json:"reasoning_content"`
+			Reasoning        string `json:"reasoning"`
 		} `json:"delta"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
@@ -29,8 +33,8 @@ type openAIStreamChunk struct {
 // literal event `data: [DONE]`.
 func (c *openAICompat) Chat(ctx context.Context, req ChatRequest, onToken TokenFunc) (string, error) {
 	messages := make([]chatMessage, 0, len(req.Messages)+1)
-	if req.System != "" {
-		messages = append(messages, chatMessage{Role: "system", Content: req.System})
+	if system := systemWith(req.System, c.noThink); system != "" {
+		messages = append(messages, chatMessage{Role: "system", Content: system})
 	}
 	for _, m := range req.Messages {
 		messages = append(messages, chatMessage{Role: m.Role, Content: m.Content})
@@ -97,6 +101,8 @@ func (c *openAICompat) Chat(ctx context.Context, req ChatRequest, onToken TokenF
 		if chunk.Choices[0].FinishReason != "" {
 			completed = true
 		}
+		delta := chunk.Choices[0].Delta
+		req.thinking(delta.ReasoningContent + delta.Reasoning)
 		text := chunk.Choices[0].Delta.Content
 		if text == "" {
 			return nil // role-only or finish chunk

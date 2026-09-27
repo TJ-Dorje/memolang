@@ -92,17 +92,23 @@ func (s *Service) SummarizeDeck(ctx context.Context, userID, conversationID int6
 		return DeckSpec{}, ErrNothingToSummarize
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
-	defer cancel()
-	raw, err := provider.Chat(ctx, ai.ChatRequest{
+	// The summary runs on the waiting page's request: it stops if the
+	// learner leaves, and otherwise only if the model goes quiet.
+	w := newWatchdog(s.IdleTimeout, s.MaxDuration)
+	defer w.Close()
+	stop := context.AfterFunc(ctx, func() { w.cancel(ctx.Err()) })
+	defer stop()
+
+	raw, err := provider.Chat(w.ctx, ai.ChatRequest{
+		OnThinking: func(string) { w.Alive() },
 		System: summaryPrompt,
 		// The transcript is sent as one user turn rather than replayed as
 		// turns: this call is a different task from the interview, and the
 		// model should read the conversation, not continue it.
 		Messages: []ai.ChatMessage{{Role: "user", Content: "Conversation:\n\n" + transcript}},
-	}, func(string) error { return nil })
+	}, func(string) error { w.Alive(); return nil })
 	if err != nil {
-		return DeckSpec{}, err
+		return DeckSpec{}, w.explain(err)
 	}
 	return parseDeckSpec(raw)
 }
