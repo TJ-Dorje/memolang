@@ -1,85 +1,60 @@
 {{template "_header" .}}
 <div class="page-header">
-    <h1>AI Provider</h1>
+    <h1>AI Providers</h1>
 </div>
 
 <div class="profile-layout">
     {{template "_profile_nav" .}}
 
     <section class="profile-body">
-{{if .Data}}{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}{{end}}
+        <p class="hint">Save as many providers as you like — a local model, a free tier, a paid key —
+        and switch between them. The assistant and card generation use the <strong>active</strong> one.</p>
 
-<h2>LLM Provider</h2>
-
-<form method="POST" action="/profile/ai">
-    {{/* Options carry their preset on data-* attributes so settings.js can
-         refill the fields when the choice changes. With JS off the fields
-         still work: SaveSettings falls back to the same preset server-side. */}}
-    <div>
-        <label for="provider">Provider</label>
-        <select name="provider" id="provider">
-            {{range .Data.Presets}}
-            <option value="{{.ID}}"
-                    data-base-url="{{.BaseURL}}"
-                    data-model="{{.DefaultModel}}"
-                    data-needs-key="{{if .NeedsKey}}1{{end}}"
-                    data-key-url="{{.KeyURL}}"
-                    data-note="{{.Note}}"
-                    {{if eq $.Data.Provider .ID}}selected{{end}}>{{.Label}}</option>
-            {{end}}
-        </select>
-        {{range .Data.Presets}}{{if eq $.Data.Provider .ID}}
-        <small class="hint" id="provider-note">{{.Note}}</small>
-        {{end}}{{end}}
-    </div>
-
-    {{range .Data.Presets}}{{if and (eq $.Data.Provider .ID) .KeyURL}}
-    <div id="key-link-row">
-        <small class="hint">Need a key? <a href="{{.KeyURL}}" target="_blank" rel="noopener noreferrer">Get one here →</a></small>
-    </div>
-    {{end}}{{end}}
-
-    <div>
-        <label for="base_url">Base URL</label>
-        <input type="text" id="base_url" name="base_url"
-            value="{{.Data.BaseURL}}"
-            placeholder="e.g. http://localhost:11434/v1">
-        <small class="hint">Filled in from the provider you pick. Leave it alone unless your server is somewhere else.</small>
-    </div>
-
-    <div>
-        <label for="api_key">API Key</label>
-        <input type="password" id="api_key" name="api_key"
-            placeholder="{{if .Data.HasAPIKey}}•••••••• (saved — leave blank to keep){{else}}API key (optional for local){{end}}">
         {{if .Data.EnvKey}}
-        <small class="hint">LLM_API_KEY is set and takes precedence — any key stored here is ignored while it is.</small>
-        {{else}}
-        <small class="hint">Stored in plain text in the database. Set <code>LLM_API_KEY</code> instead to keep a real key out of it.</small>
+        <p class="hint">LLM_API_KEY is set on the server and replaces the key of whichever provider is active.</p>
         {{end}}
-        {{if .Data.HasAPIKey}}
-        <label class="checkbox-label">
-            <input type="checkbox" name="clear_api_key" value="1"> Clear saved key
-        </label>
+
+        {{if not .Data.Providers}}
+        <div class="empty-state">
+            <p>No AI provider yet. Add one to use the tutor and create decks with AI.</p>
+        </div>
         {{end}}
-    </div>
 
-    <div>
-        <label for="model">Model</label>
-        <input type="text" id="model" name="model"
-            value="{{.Data.Model}}"
-            placeholder="e.g. llama3, gpt-4o-mini, claude-sonnet-5">
-        <small class="hint">A starting point, not a guarantee — model names change. If you get a 404, check the provider's model list.</small>
-    </div>
+        <div class="provider-list">
+            {{range .Data.Providers}}
+            <div class="provider-card{{if .Active}} provider-active{{end}}">
+                <div class="provider-head">
+                    <span class="provider-name">{{.Name}}</span>
+                    {{if .Active}}<span class="provider-badge">Active</span>{{end}}
+                </div>
+                <dl class="plan-facts">
+                    <dt>Provider</dt><dd>{{.PresetLabel}}</dd>
+                    <dt>Model</dt><dd>{{.Model}}</dd>
+                    <dt>Base URL</dt><dd>{{.BaseURL}}</dd>
+                    <dt>API key</dt><dd>{{if .HasAPIKey}}saved{{else}}none{{end}}</dd>
+                </dl>
+                <div class="btn-group">
+                    {{if not .Active}}
+                    <form method="POST" action="/profile/ai/{{.ID}}/activate">
+                        <button class="btn btn-sm btn-primary">Use This</button>
+                    </form>
+                    {{end}}
+                    <form method="POST" action="/profile/ai/{{.ID}}/test">
+                        <button class="btn btn-sm">Test Connection</button>
+                    </form>
+                    <a href="/profile/ai/{{.ID}}/edit" class="btn btn-sm">Edit</a>
+                    <form method="POST" action="/profile/ai/{{.ID}}/delete"
+                          onsubmit="return confirm('Delete this provider?')">
+                        <button class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {{end}}
+        </div>
 
-    <div>
-        <button type="submit" class="btn btn-primary">Save</button>
-    </div>
-</form>
-<script src="/static/settings.js"></script>
-
-<form method="POST" action="/profile/ai/test">
-    <button type="submit" class="btn">Test Connection</button>
-</form>
+        <div>
+            <a href="/profile/ai/new" class="btn btn-primary">+ Add Provider</a>
+        </div>
     </section>
 </div>
 {{template "_footer" .}}

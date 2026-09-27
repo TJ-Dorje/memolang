@@ -76,8 +76,11 @@ type AIFormData struct {
 	Mode     string
 }
 
-// SettingsData is the data payload for the settings page.
+// SettingsData is the data payload for the add/edit provider form. ID is 0
+// for a new provider.
 type SettingsData struct {
+	ID        int64
+	Name      string
 	Provider  string
 	BaseURL   string
 	Model     string
@@ -106,6 +109,32 @@ type SecurityData struct {
 	DeleteError   string
 }
 
+// ProvidersData is the data payload for the providers list.
+type ProvidersData struct {
+	Providers []ProviderView
+	// EnvKey reports that LLM_API_KEY overrides every stored key.
+	EnvKey bool
+}
+
+// ProviderView is a saved provider as the list shows it; the key itself is
+// never passed to a template, only whether one is stored.
+type ProviderView struct {
+	ID          int64
+	Name        string
+	PresetLabel string
+	BaseURL     string
+	Model       string
+	HasAPIKey   bool
+	Active      bool
+}
+
+// ProviderOption is an entry in the chat pages' provider switcher.
+type ProviderOption struct {
+	ID     int64
+	Name   string
+	Active bool
+}
+
 // ChatData is what every assistant chat page shows: the finished messages,
 // the reply still streaming (if any), and whether a provider is set up.
 type ChatData struct {
@@ -126,6 +155,12 @@ type ChatData struct {
 	// StreamedPlanUnreadable: the reply that just streamed had a plan block
 	// that could not be used.
 	StreamedPlanUnreadable bool
+	// Providers feeds the switcher on the chat pages; ActiveProvider names
+	// the one in use ("" when none). ReturnPath brings the learner back here
+	// after switching.
+	Providers      []ProviderOption
+	ActiveProvider string
+	ReturnPath     string
 	// HasPlan reports that the conversation already has a deck plan, so the
 	// page offers Generate on its card rather than the Create deck fallback.
 	HasPlan bool

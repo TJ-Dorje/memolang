@@ -84,27 +84,34 @@ func APIKeyFromEnv() string {
 	return os.Getenv(APIKeyEnvVar)
 }
 
-// LoadConfig reads one user's llm.* keys via models.GetSettings, with
-// LLM_API_KEY taking precedence over the stored key. The override is process
-// wide and deliberately not per-user: it is a single-operator escape hatch for
-// keeping a key out of the database, not a way to configure accounts.
+// LoadConfig returns the user's active provider as a Config; an empty Config
+// (which New rejects with ErrNotConfigured) when none is active.
 func LoadConfig(db *sql.DB, userID int64) (Config, error) {
-	settings, err := models.GetSettings(db, userID, "llm.")
+	p, err := models.GetActiveLLMProvider(db, userID)
 	if err != nil {
 		return Config{}, err
 	}
+	if p == nil {
+		return Config{}, nil
+	}
+	return ConfigOf(*p), nil
+}
 
-	apiKey := settings["llm.api_key"]
+// ConfigOf turns a saved provider into a Config, with LLM_API_KEY taking
+// precedence over its stored key. The override is process wide and
+// deliberately not per-user: it is a single-operator escape hatch for keeping
+// a key out of the database, not a way to configure accounts.
+func ConfigOf(p models.LLMProvider) Config {
+	apiKey := p.APIKey
 	if env := APIKeyFromEnv(); env != "" {
 		apiKey = env
 	}
-
 	return Config{
-		Provider: settings["llm.provider"],
-		BaseURL:  settings["llm.base_url"],
+		Provider: p.Preset,
+		BaseURL:  p.BaseURL,
 		APIKey:   apiKey,
-		Model:    settings["llm.model"],
-	}, nil
+		Model:    p.Model,
+	}
 }
 
 // New builds a Provider from config. Which client to use, and whether a key is

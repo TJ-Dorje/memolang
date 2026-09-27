@@ -49,14 +49,11 @@ func useFakeLLMAt(t *testing.T, email, baseURL string) {
 	if err != nil || u == nil {
 		t.Fatalf("look up %s: %v", email, err)
 	}
-	for key, value := range map[string]string{
-		"llm.provider": "custom",
-		"llm.base_url": baseURL,
-		"llm.model":    "fake-model",
-	} {
-		if err := models.SetSetting(configuration.DB, u.ID, key, value); err != nil {
-			t.Fatal(err)
-		}
+	_, err = models.CreateLLMProvider(configuration.DB, models.LLMProvider{
+		UserID: u.ID, Name: "Fake", Preset: "custom", BaseURL: baseURL, Model: "fake-model",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

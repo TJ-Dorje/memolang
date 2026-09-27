@@ -82,9 +82,14 @@ func NewRouter(database *sql.DB) *gin.Engine {
 		protected.POST("/profile/security/sessions", h.SignOutOtherSessions)
 		protected.POST("/profile/security/delete", h.DeleteAccount)
 
-		protected.GET("/profile/ai", h.SettingsPage)
-		protected.POST("/profile/ai", h.SaveSettings)
-		protected.POST("/profile/ai/test", h.TestLLMConnection)
+		protected.GET("/profile/ai", h.ProvidersPage)
+		protected.GET("/profile/ai/new", h.NewProviderForm)
+		protected.POST("/profile/ai/new", h.CreateProvider)
+		protected.GET("/profile/ai/:id/edit", h.EditProviderForm)
+		protected.POST("/profile/ai/:id/edit", h.UpdateProvider)
+		protected.POST("/profile/ai/:id/activate", h.ActivateProvider)
+		protected.POST("/profile/ai/:id/delete", h.DeleteProvider)
+		protected.POST("/profile/ai/:id/test", h.TestProvider)
 
 		protected.GET("/settings", h.LegacySettingsRedirect)
 	}

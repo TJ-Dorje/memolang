@@ -97,7 +97,7 @@ func (h *Handler) DeckBuilderSummary(c *gin.Context) {
 		h.redirectWithFlash(c, deckBuilderURL, "Tell the assistant about your deck first.")
 		return
 	case errors.Is(err, ai.ErrNotConfigured):
-		h.redirectWithFlash(c, deckBuilderURL, "Set up an AI provider first: Profile → AI Provider.")
+		h.redirectWithFlash(c, deckBuilderURL, "Set up an AI provider first: Profile → AI Providers.")
 		return
 	case err != nil:
 		log.Printf("DeckBuilderSummary: %v", err)

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"strings"
 	"testing"
 
 	"memolang/test/e2e/configuration"
@@ -10,14 +11,14 @@ import (
 )
 
 // NavigateToAIProvider takes the real route: account menu → Profile → the
-// profile side menu's AI Provider entry.
+// profile side menu's AI Providers entry.
 func NavigateToAIProvider(t *testing.T, page playwright.Page) {
 	t.Helper()
 	components.ClickAccountMenuItem(t, page, "Profile")
 	if err := page.WaitForURL("**/profile"); err != nil {
 		t.Fatal(err)
 	}
-	if err := page.Locator(".profile-nav a:has-text('AI Provider')").Click(); err != nil {
+	if err := page.Locator(".profile-nav a:has-text('AI Providers')").Click(); err != nil {
 		t.Fatal(err)
 	}
 	if err := page.WaitForURL("**/profile/ai"); err != nil {
@@ -25,15 +26,35 @@ func NavigateToAIProvider(t *testing.T, page playwright.Page) {
 	}
 }
 
-func SaveSettings(t *testing.T, page playwright.Page, provider, baseURL, model, apiKey string) {
+// OpenProviderForm opens the form for the shared user's provider: its edit
+// form when there is one (settings cases keep a single provider), else the
+// add form.
+func OpenProviderForm(t *testing.T, page playwright.Page) {
 	t.Helper()
-	if _, err := page.Goto(configuration.BaseURL + "/profile/ai"); err != nil {
+	components.NavigateTo(t, page, "/profile/ai")
+	edit := page.Locator(".provider-card a:has-text('Edit')").First()
+	n, err := edit.Count()
+	if err != nil {
 		t.Fatal(err)
 	}
-	values := []string{provider}
-	if _, err := page.Locator("select[name=provider]").SelectOption(playwright.SelectOptionValues{Values: &values}); err != nil {
+	if n == 0 {
+		components.NavigateTo(t, page, "/profile/ai/new")
+		return
+	}
+	if err := edit.Click(); err != nil {
 		t.Fatal(err)
 	}
+	if err := page.WaitForURL("**/edit"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// SaveSettings fills and saves the provider form, returning the flash the
+// list shows, then reopens the form so callers can check what was stored.
+func SaveSettings(t *testing.T, page playwright.Page, provider, baseURL, model, apiKey string) string {
+	t.Helper()
+	OpenProviderForm(t, page)
+	SelectProvider(t, page, provider)
 	if baseURL != "" {
 		if err := components.FillInput(page, "input[name=base_url]", baseURL); err != nil {
 			t.Fatal(err)
@@ -49,22 +70,28 @@ func SaveSettings(t *testing.T, page playwright.Page, provider, baseURL, model, 
 			t.Fatal(err)
 		}
 	}
-	if err := components.ClickButton(page, "button:has-text('Save')"); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.WaitForURL("**/profile/ai"); err != nil {
-		t.Fatal(err)
-	}
+	return SubmitSettings(t, page)
 }
 
-func TestLLMConnection(t *testing.T, page playwright.Page) {
+// SubmitSettings submits the provider form as it stands. A successful save
+// lands on the list: its flash is returned and the form reopened. A rejected
+// one re-renders the form with an error, and "" is returned.
+func SubmitSettings(t *testing.T, page playwright.Page) string {
 	t.Helper()
-	if err := components.ClickButton(page, "button:has-text('Test Connection')"); err != nil {
+	// The form re-renders at its own POST URL on error, so wait for the
+	// navigation itself rather than for one particular URL.
+	_, err := page.ExpectNavigation(func() error {
+		return components.ClickButton(page, "form button:has-text('Save')")
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := page.WaitForURL("**/profile/ai"); err != nil {
-		t.Fatal(err)
+	if !strings.HasSuffix(page.URL(), "/profile/ai") {
+		return ""
 	}
+	flash := components.GetFlash(t, page)
+	OpenProviderForm(t, page)
+	return flash
 }
 
 func ClearAPIKeyField(t *testing.T, page playwright.Page) {
@@ -83,18 +110,6 @@ func TickClearAPIKey(t *testing.T, page playwright.Page) {
 	}
 }
 
-// SubmitSettings submits the settings form as it currently stands, without
-// touching any field — for cases that set up state by other means first.
-func SubmitSettings(t *testing.T, page playwright.Page) {
-	t.Helper()
-	if err := components.ClickButton(page, "button:has-text('Save')"); err != nil {
-		t.Fatal(err)
-	}
-	if err := page.WaitForURL("**/profile/ai"); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // SelectProvider picks a provider from the dropdown, mirroring a real user's
 // change event so the progressive-enhancement script runs.
 func SelectProvider(t *testing.T, page playwright.Page, provider string) {
@@ -109,6 +124,19 @@ func SelectProvider(t *testing.T, page playwright.Page, provider string) {
 func ClearField(t *testing.T, page playwright.Page, selector string) {
 	t.Helper()
 	if err := page.Locator(selector).Clear(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ResetLLMSettings removes the shared e2e user's providers, so a settings
+// case starts from a clean, order-independent state.
+func ResetLLMSettings(t *testing.T) {
+	t.Helper()
+	_, err := configuration.DB.Exec(
+		"DELETE FROM llm_providers WHERE user_id = (SELECT id FROM users WHERE email = ?)",
+		configuration.TestUserEmail,
+	)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

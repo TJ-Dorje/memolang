@@ -166,6 +166,10 @@ func TestE2E(t *testing.T) {
 	t.Run("Settings", func(t *testing.T) {
 		t.Run("ProfileLeadsToAIProvider", cases.ProfileLeadsToAIProvider)
 		t.Run("LegacySettingsRedirects", cases.LegacySettingsRedirects)
+		t.Run("ProvidersSwitchActive", cases.ProvidersSwitchActive)
+		t.Run("ProviderSwitcherInChat", cases.ProviderSwitcherInChat)
+		t.Run("DeletingActiveProviderLeavesNone", cases.DeletingActiveProviderLeavesNone)
+		t.Run("OtherUsersProviderIs404", cases.OtherUsersProviderIs404)
 		t.Run("SaveSettings", cases.SaveSettings)
 		t.Run("ReSaveKeepsAPIKey", cases.ReSaveKeepsAPIKey)
 		t.Run("ClearAPIKeyRemovesIt", cases.ClearAPIKeyRemovesIt)

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"memolang/test/e2e/configuration"
 
 	playwright "github.com/playwright-community/playwright-go"
 )
@@ -75,11 +74,3 @@ func AnswerMC(t *testing.T, page playwright.Page, answers map[string]string, cor
 	return ""
 }
 
-// ResetLLMSettings wipes all llm.* keys so a settings test starts from a
-// clean, order-independent state.
-func ResetLLMSettings(t *testing.T) {
-	t.Helper()
-	if _, err := configuration.DB.Exec("DELETE FROM settings WHERE key LIKE 'llm.%'"); err != nil {
-		t.Fatal(err)
-	}
-}

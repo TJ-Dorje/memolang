@@ -5,14 +5,17 @@
 {{template "_header" .}}
 <div class="page-header">
     <h1>Create a Deck with AI</h1>
-    <a href="/decks/new" class="btn btn-sm">← New deck</a>
+    <div class="btn-group">
+        <a href="/decks/new" class="btn btn-sm">← New deck</a>
+        {{template "_provider_switcher" .Data.ChatData}}
+    </div>
 </div>
 
 <p class="hint">Tell the assistant what you want to learn. When it has everything, it shows a
 deck plan here — press <strong>Generate deck</strong> on it, or tell it what to change.</p>
 
 {{if not .Data.Configured}}
-<div class="form-error">The assistant needs an AI provider. Set one up under <a href="/profile/ai">Profile → AI Provider</a>.</div>
+<div class="form-error">The assistant needs an active AI provider. Add or choose one under <a href="/profile/ai">Profile → AI Providers</a>{{if .Data.Providers}}, or pick one from the AI switch above{{end}}.</div>
 {{end}}
 
 {{template "_chat_open" .Data.ChatData}}

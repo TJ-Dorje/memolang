@@ -100,7 +100,7 @@ After calling `Update`, persist the result with `models.UpdateCardSRS(...)`.
 
 It is SM-2 with Anki's reading of the buttons: Hard is a *pass* (slow growth), and Again < Hard < Good < Easy always give strictly increasing gaps. `srs.Preview(state)` returns the four gaps without changing anything; the study screen shows them under the buttons, so `Update` must take its numbers from `Preview`. Again also re-queues the card at the end of the session (max 3 appearances per card).
 
-### Database schema (9 tables)
+### Database schema (10 tables)
 
 - `users` — email (UNIQUE, `COLLATE NOCASE`), password_hash (bcrypt; empty is reserved for future OAuth-only accounts), display_name (optional; `User.Name()` falls back to email)
 - `user_sessions` — login sessions: token (PK), user_id, expires_at
@@ -108,7 +108,8 @@ It is SM-2 with Anki's reading of the buttons: Hard is a *pass* (slow growth), a
 - `cards` — front, back, example, tags, SM-2 fields (interval, ease, repetitions, due_date)
 - `study_sessions` — card_queue (JSON int array), position, correct/total counters, ended_at
 - `session_answers` — per-answer record backing the feedback and summary screens
-- `settings` — per-user key/value store (composite PK `(user_id, key)`), currently `llm.*` keys only
+- `settings` — per-user key/value store (composite PK `(user_id, key)`); unused since the `llm.*` keys moved to `llm_providers`
+- `llm_providers` — a user's saved LLM configurations (name, preset, base_url, model, api_key); at most one `active` per user (partial unique index). `ai.LoadConfig` reads the active one; switching is `ActivateLLMProvider` (one transaction)
 - `conversations` — assistant chats: kind `tutor` (one per user per card) or `deck_builder` (one open per user); `conversation_messages` — role, content, status (`done` | `generating` | `error`)
 
 Foreign keys with `ON DELETE CASCADE` are enforced via `_pragma=foreign_keys(1)` in the DSN, so every pooled connection gets it (an `Exec`'d pragma only affects one connection).

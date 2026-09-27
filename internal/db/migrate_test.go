@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const latestVersion = 6
+const latestVersion = 7
 
 // preAuthDB builds a database the way the pre-auth schema.sql left it: no
 // user_version, decks without an owner, global settings. withData adds one
@@ -37,7 +37,7 @@ func preAuthDB(t *testing.T, withData bool) string {
 		INSERT INTO decks (id, name, mode) VALUES (7, 'Spanish', 'srs');
 		INSERT INTO cards (deck_id, front, back) VALUES (7, 'hola', 'hello');
 		INSERT INTO study_sessions (deck_id, quiz_mode, card_queue) VALUES (7, 'flashcard', '[1]');
-		INSERT INTO settings (key, value) VALUES ('llm.model', 'qwen');
+		INSERT INTO settings (key, value) VALUES ('llm.provider', 'lmstudio'), ('llm.model', 'qwen');
 	`)
 	return path
 }
@@ -158,8 +158,10 @@ func TestOpenMigratesPreAuthDecksToOwner(t *testing.T) {
 	if count(t, database, "SELECT COUNT(*) FROM study_sessions WHERE deck_id = 7") != 1 {
 		t.Error("study session lost in decks rebuild")
 	}
-	if count(t, database, "SELECT COUNT(*) FROM settings WHERE user_id = ? AND key = 'llm.model'", ownerID) != 1 {
-		t.Error("setting not assigned to owner")
+	// The pre-auth LLM settings went to the owner (0003), then became their
+	// active provider (0007).
+	if count(t, database, "SELECT COUNT(*) FROM llm_providers WHERE user_id = ? AND preset = 'lmstudio' AND model = 'qwen' AND active = 1", ownerID) != 1 {
+		t.Error("pre-auth LLM settings did not become the owner's active provider")
 	}
 
 	// The rebuilt table still cascades.
@@ -299,5 +301,48 @@ func TestOpenBaselinesPostAuthDB(t *testing.T) {
 	// Baselined at 3, so the migrations after it still ran.
 	if count(t, again, "SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'display_name'") != 1 {
 		t.Error("users.display_name missing: migrations after the baseline did not run")
+	}
+}
+
+// 0007 turns each user's llm.* settings into their first, active provider.
+func TestLLMProvidersMigration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v6.db")
+	database, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateTo(context.Background(), database, 6); err != nil {
+		t.Fatalf("migrateTo(6): %v", err)
+	}
+	mustExec(t, database, `
+		INSERT INTO users (id, email) VALUES (1, 'a@example.com'), (2, 'b@example.com'), (3, 'c@example.com');
+		INSERT INTO settings (user_id, key, value) VALUES
+			(1, 'llm.provider', 'gemini'), (1, 'llm.base_url', 'https://g/v1'),
+			(1, 'llm.model', 'gemini-x'), (1, 'llm.api_key', 'secret'),
+			(2, 'llm.provider', 'custom'), (2, 'llm.model', 'm'),
+			(3, 'llm.model', 'orphan');
+	`)
+	database.Close()
+
+	noOwnerEnv(t)
+	migrated := openOrFail(t, path)
+
+	if count(t, migrated, `SELECT COUNT(*) FROM llm_providers WHERE user_id = 1 AND name = 'Google Gemini'
+		AND preset = 'gemini' AND base_url = 'https://g/v1' AND model = 'gemini-x' AND api_key = 'secret' AND active = 1`) != 1 {
+		t.Error("user 1's full configuration did not carry over")
+	}
+	if count(t, migrated, "SELECT COUNT(*) FROM llm_providers WHERE user_id = 2 AND name = 'Custom' AND base_url = '' AND active = 1") != 1 {
+		t.Error("user 2's partial configuration did not carry over")
+	}
+	// No provider chosen means nothing to carry over.
+	if count(t, migrated, "SELECT COUNT(*) FROM llm_providers WHERE user_id = 3") != 0 {
+		t.Error("a provider was invented for a user who never chose one")
+	}
+	if count(t, migrated, "SELECT COUNT(*) FROM settings WHERE key LIKE 'llm.%'") != 0 {
+		t.Error("old llm.* settings left behind")
+	}
+	// The database refuses a second active provider for a user.
+	if _, err := migrated.Exec("INSERT INTO llm_providers (user_id, name, preset, active) VALUES (1, 'Second', 'groq', 1)"); err == nil {
+		t.Error("a second active provider was accepted")
 	}
 }

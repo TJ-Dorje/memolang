@@ -6,6 +6,6 @@
 <aside class="profile-nav" aria-label="Profile sections">
     <a href="/profile"{{if eq .Path "/profile"}} class="active" aria-current="page"{{end}}>Account</a>
     <a href="/profile/security"{{if hasPrefix .Path "/profile/security"}} class="active" aria-current="page"{{end}}>Security</a>
-    <a href="/profile/ai"{{if hasPrefix .Path "/profile/ai"}} class="active" aria-current="page"{{end}}>AI Provider</a>
+    <a href="/profile/ai"{{if hasPrefix .Path "/profile/ai"}} class="active" aria-current="page"{{end}}>AI Providers</a>
 </aside>
 {{end}}

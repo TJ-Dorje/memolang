@@ -16,7 +16,7 @@
     {{range .Messages}}
     <div class="chat-msg chat-{{.Role}}">
         <div class="chat-role">{{if eq .Role "user"}}You{{else}}{{$.AssistantName}}{{end}}</div>
-        <div class="chat-text">{{.Text}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Check <a href="/profile/ai">Profile → AI Provider</a>, then ask again.</span>{{end}}</div>
+        <div class="chat-text">{{.Text}}{{if eq .Status "error"}}<span class="chat-error">The assistant could not finish this reply. Check <a href="/profile/ai">Profile → AI Providers</a>, then ask again.</span>{{end}}</div>
         {{with .Plan}}{{template "_plan_card" .}}{{end}}
         {{if .PlanUnreadable}}{{template "_plan_unreadable"}}{{end}}
     </div>
@@ -67,4 +67,23 @@
 <div class="plan-card plan-superseded">
     <div class="plan-note">The assistant's plan couldn't be read. Press <strong>Create Deck Plan</strong>, or ask it to repeat the plan.</div>
 </div>
+{{end}}
+
+{{/* Which provider the assistant is using, and a switch to another — a
+     native <details>, each choice a POST form that returns here (next). */}}
+{{define "_provider_switcher"}}
+{{if .Providers}}
+<details class="provider-switch">
+    <summary>AI: {{if .ActiveProvider}}{{.ActiveProvider}}{{else}}none active{{end}}</summary>
+    <div class="provider-switch-list">
+        {{range .Providers}}
+        <form method="POST" action="/profile/ai/{{.ID}}/activate">
+            <input type="hidden" name="next" value="{{$.ReturnPath}}">
+            <button class="provider-option{{if .Active}} active{{end}}"{{if .Active}} disabled{{end}}>{{.Name}}</button>
+        </form>
+        {{end}}
+        <a href="/profile/ai">Manage providers</a>
+    </div>
+</details>
+{{end}}
 {{end}}

@@ -25,8 +25,18 @@ func (h *Handler) loadChat(c *gin.Context, conversationID int64) (ChatData, erro
 	userID := currentUserID(c)
 	var data ChatData
 
-	cfg, err := ai.LoadConfig(h.DB, userID)
-	data.Configured = err == nil && cfg.Provider != ""
+	data.ReturnPath = c.Request.URL.Path
+	providers, err := models.ListLLMProviders(h.DB, userID)
+	if err != nil {
+		return data, err
+	}
+	for _, p := range providers {
+		data.Providers = append(data.Providers, ProviderOption{ID: p.ID, Name: p.Name, Active: p.Active})
+		if p.Active {
+			data.ActiveProvider = p.Name
+			data.Configured = true
+		}
+	}
 
 	if conversationID == 0 {
 		return data, nil
@@ -142,7 +152,7 @@ func (h *Handler) renderChat(c *gin.Context, full, top, bottom string, pd PageDa
 		// — most often a wrong base URL. It is not stored; a reload shows the
 		// generic line.
 		c.Writer.WriteString(`<span class="chat-error">The assistant could not reply: ` +
-			template.HTMLEscapeString(err.Error()) + `. Check <a href="/profile/ai">Profile → AI Provider</a>, then ask again.</span>`)
+			template.HTMLEscapeString(err.Error()) + `. Check <a href="/profile/ai">Profile → AI Providers</a>, then ask again.</span>`)
 	default:
 		write(trim.Write(plans.Flush()))
 		h.attachStreamedPlan(c, chat, reply)
@@ -185,7 +195,7 @@ func askFlash(err error) string {
 	case errors.Is(err, assistant.ErrEmptyQuestion):
 		return "Type a question, or pick one of the buttons."
 	case errors.Is(err, ai.ErrNotConfigured):
-		return "Set up an AI provider first: Profile → AI Provider."
+		return "Set up an AI provider first: Profile → AI Providers."
 	case errors.Is(err, assistant.ErrBusy):
 		return "The assistant is still answering. Wait for it to finish."
 	default:

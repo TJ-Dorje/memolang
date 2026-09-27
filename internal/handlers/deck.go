@@ -111,7 +111,7 @@ func (h *Handler) AIExecute(c *gin.Context) {
 		log.Printf("AIExecute: ai.New failed: %v", err)
 		msg := "LLM configuration error: " + err.Error()
 		if errors.Is(err, ai.ErrNotConfigured) {
-			msg = "Set up an AI provider first: Profile → AI Provider."
+			msg = "Set up an AI provider first: Profile → AI Providers."
 		}
 		h.redirectWithFlash(c, deckBuilderURL, msg)
 		return

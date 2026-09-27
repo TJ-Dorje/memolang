@@ -8,6 +8,7 @@
     <div class="btn-group">
         <a href="/decks/{{.Data.Deck.ID}}/session" class="btn btn-sm">← Back to study</a>
         <a href="/decks/{{.Data.Deck.ID}}" class="btn btn-sm">Deck</a>
+        {{template "_provider_switcher" .Data.ChatData}}
     </div>
 </div>
 
@@ -18,7 +19,7 @@
 </div>
 
 {{if not .Data.Configured}}
-<div class="form-error">The tutor needs an AI provider. Set one up under <a href="/profile/ai">Profile → AI Provider</a>.</div>
+<div class="form-error">The tutor needs an active AI provider. Add or choose one under <a href="/profile/ai">Profile → AI Providers</a>{{if .Data.Providers}}, or pick one from the AI switch above{{end}}.</div>
 {{end}}
 
 {{template "_chat_open" .Data.ChatData}}
