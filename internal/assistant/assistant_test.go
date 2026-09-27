@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"memolang/internal/ai"
-	"memolang/internal/testdb"
-	"memolang/internal/testdb/pgtest"
 	"memolang/internal/models"
 	"memolang/internal/stream"
+	"memolang/internal/testdb"
+	"memolang/internal/testdb/pgtest"
 )
 
 // fakeProvider streams a fixed reply, recording the request it got. release,

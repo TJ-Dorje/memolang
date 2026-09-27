@@ -101,7 +101,7 @@ func (s *Service) SummarizeDeck(ctx context.Context, userID, conversationID int6
 
 	raw, err := provider.Chat(w.ctx, ai.ChatRequest{
 		OnThinking: func(string) { w.Alive() },
-		System: summaryPrompt,
+		System:     summaryPrompt,
 		// The transcript is sent as one user turn rather than replayed as
 		// turns: this call is a different task from the interview, and the
 		// model should read the conversation, not continue it.

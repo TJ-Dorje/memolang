@@ -4,6 +4,7 @@
 package assistant
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -34,16 +35,20 @@ type Service struct {
 	Broker stream.Broker
 	// Provider returns the user's configured LLM. Tests swap in a fake.
 	Provider func(db *sql.DB, userID int64) (ai.Provider, error)
+	// Jobs runs background work; InProcess unless a NATS queue is set.
+	Jobs JobQueue
 	// IdleTimeout and MaxDuration bound each LLM call; see watchdog.go.
 	IdleTimeout time.Duration
 	MaxDuration time.Duration
 }
 
 func New(db *sql.DB, broker stream.Broker) *Service {
-	return &Service{
+	s := &Service{
 		DB: db, Broker: broker, Provider: userProvider,
 		IdleTimeout: DefaultIdleTimeout, MaxDuration: DefaultMaxDuration,
 	}
+	s.Jobs = InProcess{Service: s}
+	return s
 }
 
 func userProvider(db *sql.DB, userID int64) (ai.Provider, error) {
@@ -59,7 +64,7 @@ func ReplyKey(messageID int64) string {
 	return "assistant-reply-" + strconv.FormatInt(messageID, 10)
 }
 
-// Ask records the question and starts generating the reply in the
+// Ask records the question and queues the reply to be generated in the
 // background. open returns the conversation's id, creating it if needed; it
 // is only called once the question is known to be answerable, so an
 // unconfigured user leaves nothing behind. Ask returns once the reply is
@@ -71,8 +76,10 @@ func (s *Service) Ask(userID int64, open func() (int64, error), system, question
 		return ErrEmptyQuestion
 	}
 
-	provider, err := s.Provider(s.DB, userID)
-	if err != nil {
+	// Resolve the provider now, so an unconfigured user is told so before
+	// anything is written. The job reads it again when it runs, possibly in
+	// another process.
+	if _, err := s.Provider(s.DB, userID); err != nil {
 		return err
 	}
 
@@ -96,12 +103,11 @@ func (s *Service) Ask(userID int64, open func() (int64, error), system, question
 		return err
 	}
 
-	req := ai.ChatRequest{System: system, Messages: conversation(history, question)}
-
-	key := ReplyKey(replyID)
-	s.Broker.Start(key)
-	go s.generate(provider, req, replyID, key)
-	return nil
+	s.Broker.Start(ReplyKey(replyID))
+	return s.Jobs.Enqueue(context.Background(), Job{
+		Kind: JobReply, UserID: userID, ReplyID: replyID,
+		System: system, Messages: conversation(history, question),
+	})
 }
 
 // generate runs detached from any request: its context is its own, so a

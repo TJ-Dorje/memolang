@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", port)
 
-	router := app.NewRouter(database)
+	router := app.NewRouter(database, nil)
 	go http.Serve(ln, router)
 
 	fakeLLM := httptest.NewServer(helpers.FakeLLMHandler())

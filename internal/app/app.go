@@ -5,13 +5,17 @@ import (
 	"html/template"
 	"strings"
 
+	"memolang/internal/assistant"
 	"memolang/internal/handlers"
+	"memolang/internal/stream"
 	"memolang/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(database *sql.DB) *gin.Engine {
+// NewRouter builds the web app. svc runs the assistant's background work;
+// nil gives the in-process default (in-memory broker, jobs in goroutines).
+func NewRouter(database *sql.DB, svc *assistant.Service) *gin.Engine {
 	r := gin.Default()
 	r.SetFuncMap(template.FuncMap{
 		"add": func(a, b int) int { return a + b },
@@ -23,7 +27,10 @@ func NewRouter(database *sql.DB) *gin.Engine {
 	r.LoadHTMLGlob("templates/*.html")
 	r.Static("/static", "./static")
 
-	h := handlers.New(database, r.HTMLRender)
+	if svc == nil {
+		svc = assistant.New(database, stream.NewMemory())
+	}
+	h := handlers.New(database, r.HTMLRender, svc)
 
 	// Public routes.
 	r.GET("/login", h.LoginForm)

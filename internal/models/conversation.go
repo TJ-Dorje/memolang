@@ -124,3 +124,11 @@ func DeleteConversation(db *sql.DB, userID, conversationID int64) error {
 	_, err := db.Exec("DELETE FROM conversations WHERE id = $1 AND user_id = $2", conversationID, userID)
 	return err
 }
+
+// GetConversationMessageStatus returns a message's status. It is not scoped
+// by user: only background jobs call it, with an id they created.
+func GetConversationMessageStatus(db *sql.DB, id int64) (string, error) {
+	var status string
+	err := db.QueryRow("SELECT status FROM conversation_messages WHERE id = $1", id).Scan(&status)
+	return status, err
+}

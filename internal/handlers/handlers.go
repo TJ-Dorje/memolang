@@ -10,7 +10,6 @@ import (
 
 	"memolang/internal/assistant"
 	"memolang/internal/models"
-	"memolang/internal/stream"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -39,12 +38,8 @@ type Handler struct {
 	token   string
 }
 
-func New(db *sql.DB, html render.HTMLRender) *Handler {
-	return &Handler{
-		DB:        db,
-		Assistant: assistant.New(db, stream.NewMemory()),
-		HTML:      html,
-	}
+func New(db *sql.DB, html render.HTMLRender, svc *assistant.Service) *Handler {
+	return &Handler{DB: db, Assistant: svc, HTML: html}
 }
 
 func (h *Handler) storePending(data any) string {

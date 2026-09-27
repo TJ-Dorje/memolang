@@ -193,3 +193,10 @@ func GetLinearCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 	}
 	return ids, rows.Err()
 }
+
+// CountCards returns how many cards a deck has.
+func CountCards(db *sql.DB, deckID int64) (int, error) {
+	var n int
+	err := db.QueryRow("SELECT COUNT(*) FROM cards WHERE deck_id = $1", deckID).Scan(&n)
+	return n, err
+}

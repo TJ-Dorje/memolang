@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -133,6 +134,12 @@ type GenerationEvent struct {
 	Message string `json:"message,omitempty"`
 }
 
+// publishEvent sends one progress event as a JSON line.
+func (s *Service) publishEvent(key string, ev GenerationEvent) {
+	line, _ := json.Marshal(ev)
+	s.Broker.Publish(key, string(line)+"\n")
+}
+
 // GenerationKey names a deck's generation in the broker.
 func GenerationKey(deckID int64) string {
 	return "deck-generation-" + strconv.FormatInt(deckID, 10)
@@ -142,8 +149,7 @@ func GenerationKey(deckID int64) string {
 // the background, returning its id straight away. The provider is resolved
 // first, so an unconfigured user gets an error and no empty deck.
 func (s *Service) GenerateDeck(userID int64, spec DeckSpec) (int64, error) {
-	provider, err := s.Provider(s.DB, userID)
-	if err != nil {
+	if _, err := s.Provider(s.DB, userID); err != nil {
 		return 0, err
 	}
 	deck, err := models.CreateDeck(s.DB, userID, spec.Name, spec.Mode)
@@ -151,24 +157,30 @@ func (s *Service) GenerateDeck(userID int64, spec DeckSpec) (int64, error) {
 		return 0, err
 	}
 
-	key := GenerationKey(deck.ID)
-	s.Broker.Start(key)
-	go s.generateCards(provider, userID, deck.ID, spec, key)
+	s.Broker.Start(GenerationKey(deck.ID))
+	job := Job{Kind: JobGenerate, UserID: userID, DeckID: deck.ID, Spec: &spec}
+	if err := s.Jobs.Enqueue(context.Background(), job); err != nil {
+		models.DeleteDeck(s.DB, userID, deck.ID)
+		return 0, err
+	}
 	return deck.ID, nil
 }
 
 func (s *Service) generateCards(provider ai.Provider, userID, deckID int64, spec DeckSpec, key string) {
-	publish := func(ev GenerationEvent) {
-		line, _ := json.Marshal(ev)
-		s.Broker.Publish(key, string(line)+"\n")
-	}
+	publish := func(ev GenerationEvent) { s.publishEvent(key, ev) }
 
 	w := newWatchdog(s.IdleTimeout, s.MaxDuration)
 	defer w.Close()
 
+	// A resumed generation (its first worker was lost) counts the cards the
+	// first run already saved.
+	saved, err := models.CountCards(s.DB, deckID)
+	if err != nil {
+		log.Printf("generate: deck %d: counting cards: %v", deckID, err)
+	}
 	var scanner cardScanner
-	saved, thinking := 0, false
-	_, err := provider.Chat(w.ctx, ai.ChatRequest{
+	thinking := false
+	_, err = provider.Chat(w.ctx, ai.ChatRequest{
 		System:    CardGenerationPrompt(spec.Language),
 		Messages:  []ai.ChatMessage{{Role: "user", Content: cardUserPrompt(spec.Language, spec.GenerationPrompt())}},
 		MaxTokens: generationMaxTokens,

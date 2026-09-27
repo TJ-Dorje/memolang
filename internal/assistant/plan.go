@@ -70,7 +70,7 @@ func FormatDeckPlan(spec DeckSpec) string {
 
 // PlanFilter hides a reply's plan block while it streams. Text passes
 // through until PlanMarker appears, and nothing after it is shown. The
-// marker can arrive split across chunks ("``" then "`deck"), so any tail of
+// marker can arrive split across chunks ("“" then "`deck"), so any tail of
 // the text so far that could be the start of the marker is held back until
 // the next chunk settles it; Flush releases it when the reply ends without
 // a marker.
