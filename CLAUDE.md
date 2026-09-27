@@ -19,8 +19,9 @@ Prefer `task` for common operations:
 ```bash
 task dev          # run the server (dev build: embedded PostgreSQL in ./.pgdata unless DATABASE_URL is set)
 task build        # compile binary
-task test         # run all tests
+task test         # run all tests (embedded Postgres and NATS, no Docker)
 task test:srs     # run SM-2 unit tests only
+task test:integration  # e2e against the real image as web + worker containers on Postgres + NATS (needs Docker)
 task db:reset     # wipe the embedded dev database (recreated on the next task dev)
 task tidy         # go mod tidy
 ```
@@ -57,6 +58,8 @@ main.go (route registration)
 **Auth: password login, DB-backed sessions, private decks.** Everything except `/login`, `/register`, `/logout` and `/static` sits behind `middleware.RequireAuth`, which resolves the `session` cookie to a user and puts it in the gin context (`currentUserID(c)` reads it back). Decks are owned; `GetDeckByID`/`GetCardByID` scope by owner so another user's id is a 404, never a 403 (no existence leak). Handlers that take an id from the request body (`SubmitAnswer`, `EndSessionEarly`) bind it back to an owned deck via `GetSessionByID` before writing. Cookies are httpOnly + `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); set `SECURE_COOKIES=1` when serving over TLS.
 
 **Streaming pages (the AI assistant: tutor, deck builder).** LLM replies stream into the page with no JavaScript: the POST stores the question, starts generation in a detached goroutine (`internal/assistant`), and 303s to the GET, which writes the page's top half, flushes, writes each reply chunk HTML-escaped and flushed as it arrives, then the bottom half (`renderChat` in `internal/handlers/chat.go`; shared partials in `templates/chat.html`). The goroutine publishes to a `stream.Broker` (`internal/stream`, in-memory; an interface so NATS could replace it for multiple replicas), so a reload reattaches to the same reply and a closed tab doesn't cancel it. `ai.Provider.Chat` streams on both transports. Model output is untrusted: always escape it. The deck builder's replies can end in a ` ```deck {json} ``` ` plan block (`assistant.ExtractDeckPlan`); `assistant.PlanFilter` hides it while streaming and the page shows it as a card whose Generate button posts only the message id. Generate runs card generation the same way (`assistant.GenerateDeck`): the deck is created at once, a background goroutine streams the model's JSON array through `cardScanner`, saving each card the moment its object closes, and publishes one JSON event line per card for `/decks/:id/generating`. Background LLM calls end on an idle watchdog (no output — reasoning included — for 2 minutes) with a 15-minute backstop, not a fixed deadline.
+
+**Background work: one binary, two modes.** `memolang` is the web app; `memolang worker` runs LLM jobs. Chat replies and card generation are an `assistant.Job` (ids and the prepared request — never an API key) handed to a `JobQueue`. Without `NATS_URL` the web app runs jobs in-process with the in-memory broker (`task dev`, tests). With `NATS_URL` it enqueues them on a JetStream work queue (`internal/jobs`, stream `MEMOLANG_JOBS`) and streams output through the JetStream broker (`stream.JetStream`, stream `MEMOLANG_REPLIES`); workers heartbeat running jobs, a dead worker's job is redelivered after `JOBS_ACK_WAIT` (default 1m), and on redelivery a chat reply is marked interrupted while a deck generation resumes. Workers expose `/healthz` on :8081.
 
 **Session state lives in the DB.** The active study session (card queue as JSON, current position, score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active.
 
