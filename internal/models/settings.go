@@ -10,7 +10,7 @@ import (
 // GetSetting returns the value for key, or "" if the key does not exist.
 func GetSetting(db *sql.DB, userID int64, key string) (string, error) {
 	var value string
-	err := db.QueryRow("SELECT value FROM settings WHERE user_id = ? AND key = ?", userID, key).Scan(&value)
+	err := db.QueryRow("SELECT value FROM settings WHERE user_id = $1 AND key = $2", userID, key).Scan(&value)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", nil
@@ -25,7 +25,7 @@ func GetSetting(db *sql.DB, userID int64, key string) (string, error) {
 // and fails at runtime.
 func SetSetting(db *sql.DB, userID int64, key, value string) error {
 	_, err := db.Exec(
-		"INSERT INTO settings (user_id, key, value, updated_at) VALUES (?, ?, ?, datetime('now')) "+
+		"INSERT INTO settings (user_id, key, value, updated_at) VALUES ($1, $2, $3, now()) "+
 			"ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
 		userID, key, value,
 	)
@@ -34,7 +34,7 @@ func SetSetting(db *sql.DB, userID int64, key, value string) error {
 
 // GetSettings returns all of this user's keys with the given prefix (e.g. "llm.") as a map.
 func GetSettings(db *sql.DB, userID int64, prefix string) (map[string]string, error) {
-	rows, err := db.Query("SELECT key, value FROM settings WHERE user_id = ? AND key LIKE ? || '%'", userID, prefix)
+	rows, err := db.Query("SELECT key, value FROM settings WHERE user_id = $1 AND key LIKE $2 || '%'", userID, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +56,6 @@ func GetSettings(db *sql.DB, userID int64, prefix string) (map[string]string, er
 
 // DeleteSetting removes one of this user's keys from the settings table.
 func DeleteSetting(db *sql.DB, userID int64, key string) error {
-	_, err := db.Exec("DELETE FROM settings WHERE user_id = ? AND key = ?", userID, key)
+	_, err := db.Exec("DELETE FROM settings WHERE user_id = $1 AND key = $2", userID, key)
 	return err
 }

@@ -2,7 +2,10 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Deck represents a flashcard deck. Every deck is owned by exactly one user,
@@ -21,7 +24,7 @@ type Deck struct {
 func CreateDeck(db *sql.DB, userID int64, name, mode string) (Deck, error) {
 	var d Deck
 	err := db.QueryRow(
-		"INSERT INTO decks (user_id, name, mode) VALUES (?, ?, ?) RETURNING id, user_id, name, mode, created_at",
+		"INSERT INTO decks (user_id, name, mode) VALUES ($1, $2, $3) RETURNING id, user_id, name, mode, created_at",
 		userID, name, mode,
 	).Scan(&d.ID, &d.UserID, &d.Name, &d.Mode, &d.CreatedAt)
 	return d, err
@@ -31,13 +34,13 @@ func GetAllDecks(db *sql.DB, userID int64) ([]Deck, error) {
 	rows, err := db.Query(`
 		SELECT d.id, d.user_id, d.name, d.mode, d.created_at,
 			COUNT(c.id) AS card_count,
-			COUNT(CASE WHEN c.due_date <= date('now') THEN 1 END) AS due_count,
+			COUNT(CASE WHEN c.due_date <= CURRENT_DATE THEN 1 END) AS due_count,
 			CASE WHEN COUNT(c.id) > 0
 				THEN CAST(100.0 * COUNT(CASE WHEN c.repetitions >= 3 THEN 1 END) / COUNT(c.id) AS INTEGER)
 				ELSE 0 END AS mastery_pct
 		FROM decks d
 		LEFT JOIN cards c ON c.deck_id = d.id
-		WHERE d.user_id = ?
+		WHERE d.user_id = $1
 		GROUP BY d.id
 		ORDER BY d.created_at DESC
 	`, userID)
@@ -65,13 +68,13 @@ func GetDeckByID(db *sql.DB, userID, id int64) (Deck, error) {
 	err := db.QueryRow(`
 		SELECT d.id, d.user_id, d.name, d.mode, d.created_at,
 			COUNT(c.id) AS card_count,
-			COUNT(CASE WHEN c.due_date <= date('now') THEN 1 END) AS due_count,
+			COUNT(CASE WHEN c.due_date <= CURRENT_DATE THEN 1 END) AS due_count,
 			CASE WHEN COUNT(c.id) > 0
 				THEN CAST(100.0 * COUNT(CASE WHEN c.repetitions >= 3 THEN 1 END) / COUNT(c.id) AS INTEGER)
 				ELSE 0 END AS mastery_pct
 		FROM decks d
 		LEFT JOIN cards c ON c.deck_id = d.id
-		WHERE d.id = ? AND d.user_id = ?
+		WHERE d.id = $1 AND d.user_id = $2
 		GROUP BY d.id
 	`, id, userID).Scan(&d.ID, &d.UserID, &d.Name, &d.Mode, &d.CreatedAt, &d.CardCount, &d.DueCount, &d.MasteryPct)
 	if err != nil {
@@ -81,7 +84,7 @@ func GetDeckByID(db *sql.DB, userID, id int64) (Deck, error) {
 }
 
 func UpdateDeck(db *sql.DB, userID, id int64, name, mode string) error {
-	res, err := db.Exec("UPDATE decks SET name = ?, mode = ? WHERE id = ? AND user_id = ?", name, mode, id, userID)
+	res, err := db.Exec("UPDATE decks SET name = $1, mode = $2 WHERE id = $3 AND user_id = $4", name, mode, id, userID)
 	if err != nil {
 		return err
 	}
@@ -89,7 +92,7 @@ func UpdateDeck(db *sql.DB, userID, id int64, name, mode string) error {
 }
 
 func DeleteDeck(db *sql.DB, userID, id int64) error {
-	res, err := db.Exec("DELETE FROM decks WHERE id = ? AND user_id = ?", id, userID)
+	res, err := db.Exec("DELETE FROM decks WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		return err
 	}
@@ -108,4 +111,11 @@ func requireRowAffected(res sql.Result) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+// isUniqueViolation reports whether err is Postgres refusing a duplicate
+// (SQLSTATE 23505), matched by code rather than by message text.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

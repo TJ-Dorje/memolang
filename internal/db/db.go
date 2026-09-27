@@ -4,25 +4,33 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver
 )
 
-// Open opens the database and migrates it to the latest schema.
-//
-// The pragmas go in the DSN rather than a one-off Exec: database/sql pools
-// connections, and a pragma applies only to the connection that ran it, so an
-// Exec'd foreign_keys = ON left every other pooled connection without cascades.
-func Open(path string) (*sql.DB, error) {
-	database, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
+// Open connects to the PostgreSQL database at dsn (a postgres:// URL) and
+// migrates it to the latest schema. Everything above this package still
+// sees a plain *sql.DB.
+func Open(dsn string) (*sql.DB, error) {
+	database, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+	// A small pool: one app process, and the background LLM goroutines each
+	// hold a connection only briefly, per write.
+	database.SetMaxOpenConns(10)
+	database.SetConnMaxIdleTime(5 * time.Minute)
 
-	if err := migrate(context.Background(), database); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := database.PingContext(ctx); err != nil {
+		database.Close()
+		return nil, fmt.Errorf("connect db: %w", err)
+	}
+	if err := migrate(ctx, database); err != nil {
 		database.Close()
 		return nil, err
 	}
-
 	return database, nil
 }

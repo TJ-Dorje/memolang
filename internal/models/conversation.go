@@ -30,14 +30,14 @@ type ConversationMessage struct {
 // there is none. It never creates one, so merely viewing a page writes nothing.
 func FindTutorConversation(db *sql.DB, userID, cardID int64) (int64, error) {
 	return findConversation(db,
-		"SELECT id FROM conversations WHERE user_id = ? AND kind = 'tutor' AND card_id = ?", userID, cardID)
+		"SELECT id FROM conversations WHERE user_id = $1 AND kind = 'tutor' AND card_id = $2", userID, cardID)
 }
 
 // FindDeckBuilderConversation returns the user's open deck-builder
 // conversation; 0 when there is none.
 func FindDeckBuilderConversation(db *sql.DB, userID int64) (int64, error) {
 	return findConversation(db,
-		"SELECT id FROM conversations WHERE user_id = ? AND kind = 'deck_builder'", userID)
+		"SELECT id FROM conversations WHERE user_id = $1 AND kind = 'deck_builder'", userID)
 }
 
 func findConversation(db *sql.DB, query string, args ...any) (int64, error) {
@@ -53,7 +53,7 @@ func findConversation(db *sql.DB, query string, args ...any) (int64, error) {
 // creating it on first use.
 func GetOrCreateTutorConversation(db *sql.DB, userID, cardID int64) (int64, error) {
 	if _, err := db.Exec(
-		"INSERT INTO conversations (user_id, kind, card_id) VALUES (?, 'tutor', ?) ON CONFLICT DO NOTHING",
+		"INSERT INTO conversations (user_id, kind, card_id) VALUES ($1, 'tutor', $2) ON CONFLICT DO NOTHING",
 		userID, cardID,
 	); err != nil {
 		return 0, err
@@ -65,7 +65,7 @@ func GetOrCreateTutorConversation(db *sql.DB, userID, cardID int64) (int64, erro
 // conversation, creating it on first use.
 func GetOrCreateDeckBuilderConversation(db *sql.DB, userID int64) (int64, error) {
 	if _, err := db.Exec(
-		"INSERT INTO conversations (user_id, kind) VALUES (?, 'deck_builder') ON CONFLICT DO NOTHING",
+		"INSERT INTO conversations (user_id, kind) VALUES ($1, 'deck_builder') ON CONFLICT DO NOTHING",
 		userID,
 	); err != nil {
 		return 0, err
@@ -80,7 +80,7 @@ func GetConversationMessages(db *sql.DB, userID, conversationID int64) ([]Conver
 		`SELECT m.id, m.conversation_id, m.role, m.content, m.status, m.created_at
 		 FROM conversation_messages m
 		 JOIN conversations c ON c.id = m.conversation_id
-		 WHERE c.user_id = ? AND c.id = ?
+		 WHERE c.user_id = $1 AND c.id = $2
 		 ORDER BY m.id`,
 		userID, conversationID,
 	)
@@ -103,7 +103,7 @@ func GetConversationMessages(db *sql.DB, userID, conversationID int64) ([]Conver
 func AddConversationMessage(db *sql.DB, conversationID int64, role, content, status string) (int64, error) {
 	var id int64
 	err := db.QueryRow(
-		"INSERT INTO conversation_messages (conversation_id, role, content, status) VALUES (?, ?, ?, ?) RETURNING id",
+		"INSERT INTO conversation_messages (conversation_id, role, content, status) VALUES ($1, $2, $3, $4) RETURNING id",
 		conversationID, role, content, status,
 	).Scan(&id)
 	return id, err
@@ -111,7 +111,7 @@ func AddConversationMessage(db *sql.DB, conversationID int64, role, content, sta
 
 // FinishConversationMessage stores a reply's final text and status.
 func FinishConversationMessage(db *sql.DB, id int64, content, status string) error {
-	res, err := db.Exec("UPDATE conversation_messages SET content = ?, status = ? WHERE id = ?", content, status, id)
+	res, err := db.Exec("UPDATE conversation_messages SET content = $1, status = $2 WHERE id = $3", content, status, id)
 	if err != nil {
 		return err
 	}
@@ -121,6 +121,6 @@ func FinishConversationMessage(db *sql.DB, id int64, content, status string) err
 // DeleteConversation removes one of the user's conversations and its
 // messages. Deleting one that does not exist is not an error.
 func DeleteConversation(db *sql.DB, userID, conversationID int64) error {
-	_, err := db.Exec("DELETE FROM conversations WHERE id = ? AND user_id = ?", conversationID, userID)
+	_, err := db.Exec("DELETE FROM conversations WHERE id = $1 AND user_id = $2", conversationID, userID)
 	return err
 }

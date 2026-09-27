@@ -24,8 +24,8 @@ func CreateCard(db *sql.DB, deckID int64, front, back, example, tags string) (Ca
 	var c Card
 	err := db.QueryRow(
 		`INSERT INTO cards (deck_id, front, back, example, tags)
-		 VALUES (?, ?, ?, ?, ?)
-		 RETURNING id, deck_id, front, back, example, tags, interval, ease, repetitions, due_date, created_at`,
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id, deck_id, front, back, example, tags, interval_days, ease, repetitions, due_date, created_at`,
 		deckID, front, back, example, tags,
 	).Scan(&c.ID, &c.DeckID, &c.Front, &c.Back, &c.Example, &c.Tags,
 		&c.Interval, &c.Ease, &c.Repetitions, &c.DueDate, &c.CreatedAt)
@@ -33,18 +33,19 @@ func CreateCard(db *sql.DB, deckID int64, front, back, example, tags string) (Ca
 }
 
 func GetCardsByDeck(db *sql.DB, deckID int64, filter, search string) ([]Card, error) {
-	base := `SELECT id, deck_id, front, back, example, tags, interval, ease, repetitions, due_date, created_at FROM cards WHERE deck_id = ?`
+	base := `SELECT id, deck_id, front, back, example, tags, interval_days, ease, repetitions, due_date, created_at FROM cards WHERE deck_id = $1`
 	args := []any{deckID}
 
 	switch filter {
 	case "due":
-		base += ` AND due_date <= date('now')`
+		base += ` AND due_date <= CURRENT_DATE`
 	case "new":
 		base += ` AND repetitions = 0`
 	}
 
 	if search != "" {
-		base += ` AND (front LIKE ? OR back LIKE ?)`
+		// ILIKE: SQLite's LIKE ignored case, Postgres's does not.
+		base += ` AND (front ILIKE $2 OR back ILIKE $3)`
 		like := "%" + search + "%"
 		args = append(args, like, like)
 	}
@@ -80,10 +81,10 @@ func GetCardsByDeck(db *sql.DB, deckID int64, filter, search string) ([]Card, er
 func GetCardByID(db *sql.DB, userID, id int64) (Card, error) {
 	var c Card
 	err := db.QueryRow(
-		`SELECT c.id, c.deck_id, c.front, c.back, c.example, c.tags, c.interval, c.ease, c.repetitions, c.due_date, c.created_at
+		`SELECT c.id, c.deck_id, c.front, c.back, c.example, c.tags, c.interval_days, c.ease, c.repetitions, c.due_date, c.created_at
 		 FROM cards c
 		 JOIN decks d ON d.id = c.deck_id
-		 WHERE c.id = ? AND d.user_id = ?`, id, userID,
+		 WHERE c.id = $1 AND d.user_id = $2`, id, userID,
 	).Scan(&c.ID, &c.DeckID, &c.Front, &c.Back, &c.Example, &c.Tags,
 		&c.Interval, &c.Ease, &c.Repetitions, &c.DueDate, &c.CreatedAt)
 	return c, err
@@ -91,7 +92,7 @@ func GetCardByID(db *sql.DB, userID, id int64) (Card, error) {
 
 func UpdateCard(db *sql.DB, id int64, front, back, example, tags string) error {
 	_, err := db.Exec(
-		"UPDATE cards SET front = ?, back = ?, example = ?, tags = ? WHERE id = ?",
+		"UPDATE cards SET front = $1, back = $2, example = $3, tags = $4 WHERE id = $5",
 		front, back, example, tags, id,
 	)
 	return err
@@ -99,20 +100,20 @@ func UpdateCard(db *sql.DB, id int64, front, back, example, tags string) error {
 
 func UpdateCardSRS(db *sql.DB, id int64, interval int, ease float64, repetitions int, dueDate time.Time) error {
 	_, err := db.Exec(
-		"UPDATE cards SET interval = ?, ease = ?, repetitions = ?, due_date = ? WHERE id = ?",
+		"UPDATE cards SET interval_days = $1, ease = $2, repetitions = $3, due_date = $4 WHERE id = $5",
 		interval, ease, repetitions, dueDate.Format("2006-01-02"), id,
 	)
 	return err
 }
 
 func DeleteCard(db *sql.DB, id int64) error {
-	_, err := db.Exec("DELETE FROM cards WHERE id = ?", id)
+	_, err := db.Exec("DELETE FROM cards WHERE id = $1", id)
 	return err
 }
 
 func GetRandomBackValues(db *sql.DB, deckID, excludeID int64, n int) ([]string, error) {
 	rows, err := db.Query(
-		"SELECT back FROM cards WHERE deck_id = ? AND id != ? ORDER BY RANDOM() LIMIT ?",
+		"SELECT back FROM cards WHERE deck_id = $1 AND id != $2 ORDER BY RANDOM() LIMIT $3",
 		deckID, excludeID, n,
 	)
 	if err != nil {
@@ -134,24 +135,16 @@ func GetRandomBackValues(db *sql.DB, deckID, excludeID int64, n int) ([]string, 
 // GetNextDueDate returns when the deck's earliest card falls due, for telling
 // the user when to come back. ok is false for a deck with no cards.
 func GetNextDueDate(db *sql.DB, deckID int64) (due time.Time, ok bool, err error) {
-	// MIN() drops the column's DATE type, so the driver hands back text.
-	var raw sql.NullString
-	if err := db.QueryRow("SELECT MIN(due_date) FROM cards WHERE deck_id = ?", deckID).Scan(&raw); err != nil {
+	var next sql.NullTime
+	if err := db.QueryRow("SELECT MIN(due_date) FROM cards WHERE deck_id = $1", deckID).Scan(&next); err != nil {
 		return time.Time{}, false, err
 	}
-	if !raw.Valid || len(raw.String) < len("2006-01-02") {
-		return time.Time{}, false, nil
-	}
-	due, err = time.Parse("2006-01-02", raw.String[:len("2006-01-02")])
-	if err != nil {
-		return time.Time{}, false, err
-	}
-	return due, true, nil
+	return next.Time, next.Valid, nil
 }
 
 func GetDueCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 	rows, err := db.Query(
-		`SELECT id FROM cards WHERE deck_id = ? AND due_date <= date('now') ORDER BY due_date LIMIT ?`,
+		`SELECT id FROM cards WHERE deck_id = $1 AND due_date <= CURRENT_DATE ORDER BY due_date LIMIT $2`,
 		deckID, limit,
 	)
 	if err != nil {
@@ -178,11 +171,11 @@ func GetDueCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 // card's due date out, so the next session reaches different ones.
 func GetLinearCardIDs(db *sql.DB, deckID int64, limit int) ([]int64, error) {
 	rows, err := db.Query(
-		`SELECT id FROM cards WHERE deck_id = ?
+		`SELECT id FROM cards WHERE deck_id = $1
 		 ORDER BY repetitions > 0,
 		          CASE WHEN repetitions = 0 THEN id END,
 		          due_date, id
-		 LIMIT ?`,
+		 LIMIT $2`,
 		deckID, limit,
 	)
 	if err != nil {

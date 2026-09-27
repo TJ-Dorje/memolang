@@ -33,7 +33,7 @@ func scanLLMProvider(row rowScanner) (LLMProvider, error) {
 // in the order they were added.
 func ListLLMProviders(db *sql.DB, userID int64) ([]LLMProvider, error) {
 	rows, err := db.Query(
-		"SELECT "+llmProviderColumns+" FROM llm_providers WHERE user_id = ? ORDER BY active DESC, id",
+		"SELECT "+llmProviderColumns+" FROM llm_providers WHERE user_id = $1 ORDER BY active DESC, id",
 		userID,
 	)
 	if err != nil {
@@ -56,7 +56,7 @@ func ListLLMProviders(db *sql.DB, userID int64) ([]LLMProvider, error) {
 // that is not theirs, exactly like one that does not exist.
 func GetLLMProvider(db *sql.DB, userID, id int64) (LLMProvider, error) {
 	return scanLLMProvider(db.QueryRow(
-		"SELECT "+llmProviderColumns+" FROM llm_providers WHERE id = ? AND user_id = ?", id, userID,
+		"SELECT "+llmProviderColumns+" FROM llm_providers WHERE id = $1 AND user_id = $2", id, userID,
 	))
 }
 
@@ -64,7 +64,7 @@ func GetLLMProvider(db *sql.DB, userID, id int64) (LLMProvider, error) {
 // none is active.
 func GetActiveLLMProvider(db *sql.DB, userID int64) (*LLMProvider, error) {
 	p, err := scanLLMProvider(db.QueryRow(
-		"SELECT "+llmProviderColumns+" FROM llm_providers WHERE user_id = ? AND active = 1", userID,
+		"SELECT "+llmProviderColumns+" FROM llm_providers WHERE user_id = $1 AND active", userID,
 	))
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -81,8 +81,8 @@ func CreateLLMProvider(db *sql.DB, p LLMProvider) (int64, error) {
 	var id int64
 	err := db.QueryRow(
 		`INSERT INTO llm_providers (user_id, name, preset, base_url, model, api_key, disable_thinking, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?,
-		         NOT EXISTS (SELECT 1 FROM llm_providers WHERE user_id = ? AND active = 1))
+		 VALUES ($1, $2, $3, $4, $5, $6, $7,
+		         NOT EXISTS (SELECT 1 FROM llm_providers WHERE user_id = $8 AND active))
 		 RETURNING id`,
 		p.UserID, p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey, p.DisableThinking, p.UserID,
 	).Scan(&id)
@@ -93,8 +93,8 @@ func CreateLLMProvider(db *sql.DB, p LLMProvider) (int64, error) {
 // so callers decide whether to keep, replace or clear it.
 func UpdateLLMProvider(db *sql.DB, p LLMProvider) error {
 	res, err := db.Exec(
-		`UPDATE llm_providers SET name = ?, preset = ?, base_url = ?, model = ?, api_key = ?, disable_thinking = ?
-		 WHERE id = ? AND user_id = ?`,
+		`UPDATE llm_providers SET name = $1, preset = $2, base_url = $3, model = $4, api_key = $5, disable_thinking = $6
+		 WHERE id = $7 AND user_id = $8`,
 		p.Name, p.Preset, p.BaseURL, p.Model, p.APIKey, p.DisableThinking, p.ID, p.UserID,
 	)
 	if err != nil {
@@ -114,10 +114,10 @@ func ActivateLLMProvider(db *sql.DB, userID, id int64) error {
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec("UPDATE llm_providers SET active = 0 WHERE user_id = ? AND active = 1", userID); err != nil {
+	if _, err := tx.Exec("UPDATE llm_providers SET active = false WHERE user_id = $1 AND active", userID); err != nil {
 		return err
 	}
-	res, err := tx.Exec("UPDATE llm_providers SET active = 1 WHERE id = ? AND user_id = ?", id, userID)
+	res, err := tx.Exec("UPDATE llm_providers SET active = true WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func ActivateLLMProvider(db *sql.DB, userID, id int64) error {
 // one leaves none active: silently activating another could start billing a
 // different key, so the user picks.
 func DeleteLLMProvider(db *sql.DB, userID, id int64) error {
-	res, err := db.Exec("DELETE FROM llm_providers WHERE id = ? AND user_id = ?", id, userID)
+	res, err := db.Exec("DELETE FROM llm_providers WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		return err
 	}

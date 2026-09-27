@@ -4,14 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"memolang/internal/ai"
-	"memolang/internal/db"
+	"memolang/internal/testdb"
+	"memolang/internal/testdb/pgtest"
 	"memolang/internal/models"
 	"memolang/internal/stream"
 )
@@ -62,11 +62,7 @@ type fixture struct {
 
 func setup(t *testing.T, p ai.Provider) fixture {
 	t.Helper()
-	database, err := db.Open(filepath.Join(t.TempDir(), "assistant.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { database.Close() })
+	database := testdb.New(t)
 
 	u, _ := models.CreateUser(database, "learner@example.com", "hash")
 	deck, _ := models.CreateDeck(database, u.ID, "Spanish", "srs")
@@ -279,3 +275,5 @@ func TestTutorPromptFencesCard(t *testing.T) {
 		t.Error("card text is not inside the <card> fence")
 	}
 }
+
+func TestMain(m *testing.M) { pgtest.Main(m) }

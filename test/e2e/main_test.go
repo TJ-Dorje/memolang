@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"memolang/internal/app"
-	"memolang/internal/db"
+	"memolang/internal/testdb"
+	"memolang/internal/testdb/pgtest"
 	"memolang/test/e2e/cases"
 	"memolang/test/e2e/configuration"
 	"memolang/test/e2e/helpers"
@@ -23,19 +24,15 @@ func TestMain(m *testing.M) {
 
 	helpers.ChdirRoot()
 
-	tmpDB, err := os.CreateTemp("", "memolang-e2e-*.db")
+	stopPostgres, err := pgtest.Start()
 	if err != nil {
 		panic(err)
 	}
-	tmpDB.Close()
-	dbPath := tmpDB.Name()
-	defer os.Remove(dbPath)
-
-	database, err := db.Open(dbPath)
+	database, err := testdb.OpenForMain()
 	if err != nil {
+		stopPostgres()
 		panic(err)
 	}
-	defer database.Close()
 	configuration.DB = database
 
 	ln, err := net.Listen("tcp", ":0")
@@ -74,6 +71,9 @@ func TestMain(m *testing.M) {
 	configuration.Context.Close()
 	configuration.Browser.Close()
 	pw.Stop()
+	// os.Exit skips deferred calls, so the database is cleaned up explicitly.
+	database.Close()
+	stopPostgres()
 	os.Exit(code)
 }
 

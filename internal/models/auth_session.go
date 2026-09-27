@@ -16,8 +16,8 @@ func CreateUserSession(db *sql.DB, userID int64, ttl time.Duration) (string, err
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO user_sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
-		token, userID, time.Now().Add(ttl).UTC().Format("2006-01-02 15:04:05"),
+		"INSERT INTO user_sessions (token, user_id, expires_at) VALUES ($1, $2, $3)",
+		token, userID, time.Now().Add(ttl),
 	)
 	if err != nil {
 		return "", err
@@ -32,7 +32,7 @@ func GetUserByToken(db *sql.DB, token string) (*User, error) {
 		`SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at
 		 FROM user_sessions s
 		 JOIN users u ON u.id = s.user_id
-		 WHERE s.token = ? AND s.expires_at > datetime('now')`,
+		 WHERE s.token = $1 AND s.expires_at > now()`,
 		token,
 	))
 	if err == sql.ErrNoRows {
@@ -45,7 +45,7 @@ func GetUserByToken(db *sql.DB, token string) (*User, error) {
 }
 
 func DeleteUserSession(db *sql.DB, token string) error {
-	_, err := db.Exec("DELETE FROM user_sessions WHERE token = ?", token)
+	_, err := db.Exec("DELETE FROM user_sessions WHERE token = $1", token)
 	return err
 }
 
@@ -54,7 +54,7 @@ func DeleteUserSession(db *sql.DB, token string) error {
 func CountUserSessions(db *sql.DB, userID int64) (int, error) {
 	var n int
 	err := db.QueryRow(
-		"SELECT COUNT(*) FROM user_sessions WHERE user_id = ? AND expires_at > datetime('now')", userID,
+		"SELECT COUNT(*) FROM user_sessions WHERE user_id = $1 AND expires_at > now()", userID,
 	).Scan(&n)
 	return n, err
 }
@@ -64,7 +64,7 @@ func CountUserSessions(db *sql.DB, userID int64) (int, error) {
 // password change and by "sign out everywhere else": a stolen session must
 // not outlive either.
 func DeleteOtherUserSessions(db *sql.DB, userID int64, keepToken string) (int64, error) {
-	res, err := db.Exec("DELETE FROM user_sessions WHERE user_id = ? AND token != ?", userID, keepToken)
+	res, err := db.Exec("DELETE FROM user_sessions WHERE user_id = $1 AND token != $2", userID, keepToken)
 	if err != nil {
 		return 0, err
 	}

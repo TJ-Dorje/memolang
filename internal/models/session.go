@@ -40,7 +40,7 @@ func CreateSession(db *sql.DB, deckID int64, quizMode string, cardIDs []int64) (
 	var row sessionRow
 	err = db.QueryRow(
 		`INSERT INTO study_sessions (deck_id, quiz_mode, card_queue, position, correct, total)
-		 VALUES (?, ?, ?, 0, 0, 0)
+		 VALUES ($1, $2, $3, 0, 0, 0)
 		 RETURNING id, deck_id, quiz_mode, card_queue, position, correct, total, started_at, ended_at`,
 		deckID, quizMode, string(queueJSON),
 	).Scan(&row.ID, &row.DeckID, &row.QuizMode, &row.CardQueue, &row.Position,
@@ -56,7 +56,7 @@ func GetActiveSession(db *sql.DB, deckID int64) (*StudySession, error) {
 	err := db.QueryRow(
 		`SELECT id, deck_id, quiz_mode, card_queue, position, correct, total, started_at, ended_at
 		 FROM study_sessions
-		 WHERE deck_id = ? AND ended_at IS NULL
+		 WHERE deck_id = $1 AND ended_at IS NULL
 		 ORDER BY started_at DESC LIMIT 1`,
 		deckID,
 	).Scan(&row.ID, &row.DeckID, &row.QuizMode, &row.CardQueue, &row.Position,
@@ -79,7 +79,7 @@ func GetSessionByID(db *sql.DB, deckID, id int64) (*StudySession, error) {
 	err := db.QueryRow(
 		`SELECT id, deck_id, quiz_mode, card_queue, position, correct, total, started_at, ended_at
 		 FROM study_sessions
-		 WHERE id = ? AND deck_id = ?`,
+		 WHERE id = $1 AND deck_id = $2`,
 		id, deckID,
 	).Scan(&row.ID, &row.DeckID, &row.QuizMode, &row.CardQueue, &row.Position,
 		&row.Correct, &row.Total, &row.StartedAt, &row.EndedAt)
@@ -96,24 +96,24 @@ func GetSessionByID(db *sql.DB, deckID, id int64) (*StudySession, error) {
 func AdvanceSession(db *sql.DB, id int64, correct bool) error {
 	if correct {
 		_, err := db.Exec(
-			"UPDATE study_sessions SET position = position + 1, total = total + 1, correct = correct + 1 WHERE id = ?",
+			"UPDATE study_sessions SET position = position + 1, total = total + 1, correct = correct + 1 WHERE id = $1",
 			id,
 		)
 		return err
 	}
 	_, err := db.Exec(
-		"UPDATE study_sessions SET position = position + 1, total = total + 1 WHERE id = ?",
+		"UPDATE study_sessions SET position = position + 1, total = total + 1 WHERE id = $1",
 		id,
 	)
 	return err
 }
 
 // AppendToSessionQueue adds a card to the end of a session's queue, so it
-// comes up again before the session ends. json_insert with '$[#]' appends to
-// the stored JSON array in one statement, with no read-modify-write race.
+// comes up again before the session ends. jsonb || appends to the stored
+// array in one statement, with no read-modify-write race.
 func AppendToSessionQueue(db *sql.DB, id, cardID int64) error {
 	res, err := db.Exec(
-		"UPDATE study_sessions SET card_queue = json_insert(card_queue, '$[#]', ?) WHERE id = ?",
+		"UPDATE study_sessions SET card_queue = card_queue || to_jsonb($1::bigint) WHERE id = $2",
 		cardID, id,
 	)
 	if err != nil {
@@ -123,7 +123,7 @@ func AppendToSessionQueue(db *sql.DB, id, cardID int64) error {
 }
 
 func EndSession(db *sql.DB, id int64) error {
-	_, err := db.Exec("UPDATE study_sessions SET ended_at = datetime('now') WHERE id = ?", id)
+	_, err := db.Exec("UPDATE study_sessions SET ended_at = now() WHERE id = $1", id)
 	return err
 }
 
@@ -132,7 +132,7 @@ func GetLastEndedSession(db *sql.DB, deckID int64) (*StudySession, error) {
 	err := db.QueryRow(
 		`SELECT id, deck_id, quiz_mode, card_queue, position, correct, total, started_at, ended_at
 		 FROM study_sessions
-		 WHERE deck_id = ? AND ended_at IS NOT NULL
+		 WHERE deck_id = $1 AND ended_at IS NOT NULL
 		 ORDER BY ended_at DESC LIMIT 1`,
 		deckID,
 	).Scan(&row.ID, &row.DeckID, &row.QuizMode, &row.CardQueue, &row.Position,

@@ -1,21 +1,17 @@
 package models_test
 
 import (
-	"path/filepath"
+	"database/sql"
 	"testing"
 
-	"database/sql"
-
-	"memolang/internal/db"
+	"memolang/internal/testdb"
+	"memolang/internal/testdb/pgtest"
 )
 
-// testDB opens a throwaway database with the real schema applied.
+func TestMain(m *testing.M) { pgtest.Main(m) }
+
+// testDB returns a fresh, fully migrated database for the test.
 func testDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	t.Cleanup(func() { database.Close() })
-	return database
+	return testdb.New(t)
 }

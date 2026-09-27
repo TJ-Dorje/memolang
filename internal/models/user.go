@@ -44,19 +44,19 @@ func scanUser(row rowScanner) (User, error) {
 	return u, err
 }
 
-// NormalizeEmail matches the COLLATE NOCASE constraint on users.email, so the
-// Go layer and the DB agree on what counts as the same address.
+// NormalizeEmail matches the unique index on lower(email), so the Go layer
+// and the database agree on what counts as the same address.
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
 func CreateUser(db *sql.DB, email, passwordHash string) (User, error) {
 	u, err := scanUser(db.QueryRow(
-		"INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING "+userColumns,
+		"INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING "+userColumns,
 		NormalizeEmail(email), passwordHash,
 	))
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE") {
+		if isUniqueViolation(err) {
 			return User{}, ErrEmailTaken
 		}
 		return User{}, err
@@ -67,7 +67,7 @@ func CreateUser(db *sql.DB, email, passwordHash string) (User, error) {
 // GetUserByEmail returns nil, nil if no such user exists.
 func GetUserByEmail(db *sql.DB, email string) (*User, error) {
 	u, err := scanUser(db.QueryRow(
-		"SELECT "+userColumns+" FROM users WHERE email = ?", NormalizeEmail(email),
+		"SELECT "+userColumns+" FROM users WHERE lower(email) = $1", NormalizeEmail(email),
 	))
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -80,7 +80,7 @@ func GetUserByEmail(db *sql.DB, email string) (*User, error) {
 
 // GetUserByID returns nil, nil if no such user exists.
 func GetUserByID(db *sql.DB, id int64) (*User, error) {
-	u, err := scanUser(db.QueryRow("SELECT "+userColumns+" FROM users WHERE id = ?", id))
+	u, err := scanUser(db.QueryRow("SELECT "+userColumns+" FROM users WHERE id = $1", id))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -91,7 +91,7 @@ func GetUserByID(db *sql.DB, id int64) (*User, error) {
 }
 
 func UpdateDisplayName(db *sql.DB, userID int64, name string) error {
-	res, err := db.Exec("UPDATE users SET display_name = ? WHERE id = ?", name, userID)
+	res, err := db.Exec("UPDATE users SET display_name = $1 WHERE id = $2", name, userID)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func UpdateDisplayName(db *sql.DB, userID int64, name string) error {
 }
 
 func UpdatePassword(db *sql.DB, userID int64, passwordHash string) error {
-	res, err := db.Exec("UPDATE users SET password_hash = ? WHERE id = ?", passwordHash, userID)
+	res, err := db.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", passwordHash, userID)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func UpdatePassword(db *sql.DB, userID int64, passwordHash string) error {
 // ON DELETE CASCADE: login sessions, settings, and decks, which in turn take
 // their cards, study sessions and answers.
 func DeleteUser(db *sql.DB, userID int64) error {
-	res, err := db.Exec("DELETE FROM users WHERE id = ?", userID)
+	res, err := db.Exec("DELETE FROM users WHERE id = $1", userID)
 	if err != nil {
 		return err
 	}

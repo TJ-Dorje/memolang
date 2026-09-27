@@ -396,7 +396,7 @@ func (h *Handler) SessionSummary(c *gin.Context) {
 
 	var dueTomorrow int
 	h.DB.QueryRow(
-		`SELECT COUNT(*) FROM cards WHERE deck_id = ? AND due_date = date('now', '+1 day')`,
+		`SELECT COUNT(*) FROM cards WHERE deck_id = $1 AND due_date = CURRENT_DATE + 1`,
 		deckID,
 	).Scan(&dueTomorrow)
 

@@ -2,8 +2,8 @@ version: '3'
 
 tasks:
   dev:
-    desc: Run the development server
-    cmd: go run .
+    desc: Run the development server (embedded PostgreSQL in ./.pgdata unless DATABASE_URL is set)
+    cmd: go run -tags dev .
 
   build:
     desc: Compile the binary
@@ -26,8 +26,8 @@ tasks:
     cmd: go test ./test/e2e -v -count=1 -timeout 120s
 
   db:reset:
-    desc: Delete the SQLite database (recreated automatically on next start)
-    cmd: rm -f memolang.db memolang.db-shm memolang.db-wal
+    desc: Delete the embedded dev database (recreated on the next task dev)
+    cmd: rm -rf .pgdata
     prompt: This will delete all data. Continue?
 
   tidy:

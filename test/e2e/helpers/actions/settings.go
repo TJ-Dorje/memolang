@@ -133,7 +133,7 @@ func ClearField(t *testing.T, page playwright.Page, selector string) {
 func ResetLLMSettings(t *testing.T) {
 	t.Helper()
 	_, err := configuration.DB.Exec(
-		"DELETE FROM llm_providers WHERE user_id = (SELECT id FROM users WHERE email = ?)",
+		"DELETE FROM llm_providers WHERE user_id = (SELECT id FROM users WHERE email = $1)",
 		configuration.TestUserEmail,
 	)
 	if err != nil {

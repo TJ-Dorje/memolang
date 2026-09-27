@@ -183,7 +183,8 @@ func (h *Handler) executeImport(c *gin.Context, deckID int64, _ models.Deck, dat
 			continue
 		}
 		_, err := tx.Exec(
-			`INSERT OR IGNORE INTO cards (deck_id, front, back, example, tags) VALUES (?, ?, ?, ?, ?)`,
+			`INSERT INTO cards (deck_id, front, back, example, tags) VALUES ($1, $2, $3, $4, $5)
+			 ON CONFLICT (deck_id, front) DO NOTHING`,
 			deckID, front, back, safeGet(row, exampleCol), safeGet(row, tagsCol),
 		)
 		if err != nil {
