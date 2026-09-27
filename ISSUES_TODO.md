@@ -5,6 +5,7 @@ Open items are listed first; everything below them is resolved.
 | # | Status | Summary |
 |---|--------|---------|
 | ISS-017 | 🔲 Open — **before publishing** | AI assistant must stay on topic (language learning / deck building). Today only the prompt keeps it there; a real model will happily answer programming questions. See "ISS-017 detail" below |
+| ISS-018 | 🔲 Planned — production stability | Scale past one pod: PostgreSQL instead of SQLite (prerequisite), a NATS JetStream `stream.Broker`, then a worker Deployment consuming LLM jobs so deploys and crashes don't kill in-flight generations. See `docs/plans/SCALING_PLAN.md` |
 | ISS-001 | ✅ Fixed | `card.js` now loaded in `session.html`; inline `revealCard()` removed |
 | ISS-002 | ✅ Fixed | Dead `PageData`, `render`, flash helpers deleted from `main.go` |
 | ISS-003 | ✅ Fixed | Empty stub files `srs.go` and `models.go` deleted |
