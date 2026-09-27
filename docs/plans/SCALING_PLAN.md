@@ -58,8 +58,9 @@ Move from SQLite to PostgreSQL so more than one process can use the data.
   partial unique indexes (supported), `COLLATE NOCASE` → `citext` or
   `lower()` unique index, `PRAGMA user_version` → a `schema_version` table in
   the migration runner.
-- Migrations: a Postgres baseline equal to the current schema, plus a
-  one-off data copy from the SQLite file.
+- Migrations: a Postgres baseline equal to the current schema. No data
+  copy: the SQLite data was test data only (decided 2026-09-27), so
+  production starts on an empty database.
 - Deployment: Postgres in the cluster (or managed), a Secret with the DSN,
   backups moved from the `sqlite3 .backup` CronJob to `pg_dump`.
 - Only now can the app Deployment switch from `Recreate` to rolling updates.
