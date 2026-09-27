@@ -44,7 +44,7 @@ type Stack struct {
 const (
 	// PostgresImage and NATSImage are the images production runs.
 	PostgresImage = "postgres:18"
-	NATSImage     = "nats:2.12"
+	NATSImage     = "nats:2.15.0"
 
 	appImageRepo = "memolang-integration"
 	appImageTag  = "latest"
