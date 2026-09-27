@@ -110,12 +110,27 @@ func useJetStream(ctx context.Context, svc *assistant.Service, nc *nats.Conn) *j
 	if err != nil {
 		log.Fatalf("JetStream broker: %v", err)
 	}
-	queue, err := jobs.New(ctx, nc, jobs.Options{})
+	queue, err := jobs.New(ctx, nc, jobs.Options{AckWait: durationEnv("JOBS_ACK_WAIT")})
 	if err != nil {
 		log.Fatalf("JetStream job queue: %v", err)
 	}
 	svc.Broker, svc.Jobs = broker, queue
 	return queue
+}
+
+// durationEnv reads an optional duration setting such as "30s"; 0 (the
+// package default) when unset. A malformed value stops startup rather than
+// being silently ignored.
+func durationEnv(name string) time.Duration {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		log.Fatalf("%s=%q: %v", name, v, err)
+	}
+	return d
 }
 
 // serve runs server until ctx ends, then shuts it down gracefully.

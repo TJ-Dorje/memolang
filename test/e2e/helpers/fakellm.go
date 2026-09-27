@@ -131,6 +131,9 @@ func streamChat(w http.ResponseWriter, last string) {
 	case strings.Contains(last, FakeFailTrigger):
 		streamPlanFor(w, FakeFailingPrompt)
 		return
+	case strings.Contains(last, FakeSlowTrigger):
+		streamPlanFor(w, FakeSlowPrompt)
+		return
 	case strings.Contains(last, FakePlanTrigger):
 		streamPlanFor(w, FakeDeckPrompt)
 		return
@@ -191,6 +194,10 @@ const FakeFailingPrompt = "A topic the generator refuses."
 // a test can see it on the page before the rest arrives.
 func streamCards(w http.ResponseWriter, last string, thinking bool) {
 	w.Header().Set("Content-Type", "text/event-stream")
+	if strings.Contains(last, FakeSlowPrompt) {
+		streamSlowCards(w)
+		return
+	}
 	if strings.Contains(last, FakeFailingPrompt) {
 		// Paused, so the failure lands while the progress page is open. An
 		// instant failure deletes the empty deck before the page loads, and
@@ -221,5 +228,40 @@ func sendReasoning(w http.ResponseWriter, text string) {
 		"choices": []any{map[string]any{"delta": map[string]string{"reasoning_content": text}}},
 	})
 	fmt.Fprintf(w, "data: %s\n\n", chunk)
+	w.(http.Flusher).Flush()
+}
+
+// FakeSlowTrigger in the learner's message makes the fake deck builder
+// propose a plan whose generation is slow (see FakeSlowPrompt).
+const FakeSlowTrigger = "slowly"
+
+// FakeSlowPrompt, in a plan, makes the fake generator write FakeSlowCards
+// one per second — time enough to kill a worker halfway through.
+const FakeSlowPrompt = "A long topic, generated slowly."
+
+// FakeSlowCards is what a slow generation produces.
+var FakeSlowCards = func() []map[string]string {
+	var cards []map[string]string
+	for i := 1; i <= 8; i++ {
+		cards = append(cards, map[string]string{
+			"front": fmt.Sprintf("palabra %d", i), "back": fmt.Sprintf("word %d", i),
+		})
+	}
+	return cards
+}()
+
+func streamSlowCards(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	sendChunk(w, "[")
+	for i, card := range FakeSlowCards {
+		obj, _ := json.Marshal(card)
+		sep := ","
+		if i == len(FakeSlowCards)-1 {
+			sep = "]"
+		}
+		sendChunk(w, string(obj)+sep)
+		time.Sleep(time.Second)
+	}
+	fmt.Fprint(w, "data: [DONE]\n\n")
 	w.(http.Flusher).Flush()
 }

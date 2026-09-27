@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,30 +25,18 @@ func TestMain(m *testing.M) {
 
 	helpers.ChdirRoot()
 
-	stopPostgres, err := pgtest.Start()
-	if err != nil {
-		panic(err)
-	}
-	database, err := testdb.OpenForMain()
-	if err != nil {
-		stopPostgres()
-		panic(err)
-	}
-	configuration.DB = database
-
-	ln, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(err)
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", port)
-
-	router := app.NewRouter(database, nil)
-	go http.Serve(ln, router)
-
 	fakeLLM := httptest.NewServer(helpers.FakeLLMHandler())
 	defer fakeLLM.Close()
-	configuration.FakeLLMURL = fakeLLM.URL
+
+	// Default: the app runs in this process on embedded Postgres, background
+	// work in-process. INTEGRATION=1: the real image, as web and worker
+	// containers on Postgres and NATS JetStream containers (needs Docker).
+	var cleanup func()
+	if configuration.IsIntegration() {
+		cleanup = startIntegrationStack(fakeLLM)
+	} else {
+		cleanup = startInProcess(fakeLLM)
+	}
 
 	pw, err := playwright.Run()
 	if err != nil {
@@ -71,10 +60,51 @@ func TestMain(m *testing.M) {
 	configuration.Context.Close()
 	configuration.Browser.Close()
 	pw.Stop()
-	// os.Exit skips deferred calls, so the database is cleaned up explicitly.
-	database.Close()
-	stopPostgres()
+	// os.Exit skips deferred calls, so the app's environment is cleaned up
+	// explicitly.
+	cleanup()
 	os.Exit(code)
+}
+
+// startInProcess runs the app in this process on embedded Postgres.
+func startInProcess(fakeLLM *httptest.Server) (cleanup func()) {
+	stopPostgres, err := pgtest.Start()
+	if err != nil {
+		panic(err)
+	}
+	database, err := testdb.OpenForMain()
+	if err != nil {
+		stopPostgres()
+		panic(err)
+	}
+	configuration.DB = database
+	configuration.FakeLLMURL = fakeLLM.URL
+
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
+	}
+	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", ln.Addr().(*net.TCPAddr).Port)
+	go http.Serve(ln, app.NewRouter(database, nil))
+
+	return func() {
+		database.Close()
+		stopPostgres()
+	}
+}
+
+// startIntegrationStack runs the production-like container stack.
+func startIntegrationStack(fakeLLM *httptest.Server) (cleanup func()) {
+	port := fakeLLM.Listener.Addr().(*net.TCPAddr).Port
+	stack, err := helpers.StartStack(context.Background(), port)
+	if err != nil {
+		panic(fmt.Sprintf("integration stack: %v", err))
+	}
+	helpers.CurrentStack = stack
+	configuration.DB = stack.DB
+	configuration.BaseURL = stack.BaseURL
+	configuration.FakeLLMURL = stack.FakeLLMURL
+	return stack.Stop
 }
 
 // TestE2E is the single suite entry point. Every exported func in the cases
@@ -89,6 +119,9 @@ func TestE2E(t *testing.T) {
 		t.Run("StudyDropdownOffersBothModes", cases.StudyDropdownOffersBothModes)
 		t.Run("DashboardLayout", cases.DashboardLayout)
 		t.Run("EditDeck", cases.EditDeck)
+	})
+	t.Run("Integration", func(t *testing.T) {
+		t.Run("WorkerDeathResumesGeneration", cases.WorkerDeathResumesGeneration)
 	})
 	t.Run("DeckBuilder", func(t *testing.T) {
 		t.Run("DeckBuilderPlanInChat", cases.DeckBuilderPlanInChat)

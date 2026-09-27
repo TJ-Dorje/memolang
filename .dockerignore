@@ -1,0 +1,13 @@
+# Keep the image build context to what the build needs. Without this,
+# COPY . . would send the embedded dev database (.pgdata, hundreds of MB),
+# old SQLite files and local tooling state into every build.
+.git
+.pgdata
+.codegraph
+*.db
+*.db-shm
+*.db-wal
+memolang
+test
+testdata
+docs

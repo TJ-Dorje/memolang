@@ -30,3 +30,9 @@ const (
 func IsHeaded() bool {
 	return os.Getenv("HEADED") == "true"
 }
+
+// IsIntegration reports INTEGRATION=1: run the suite against the
+// production-like container stack instead of an in-process app.
+func IsIntegration() bool {
+	return os.Getenv("INTEGRATION") == "1"
+}
