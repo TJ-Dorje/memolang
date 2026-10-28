@@ -1,91 +1,98 @@
-# MemoLang — Architecture (as of 2026-09-15)
+# MemoLang — Architecture
 
-Snapshot of the current system. This describes what exists today, not what's planned — see `docs/plans/` for upcoming work.
+Snapshot of the system as it is today, not what's planned — see `docs/plans/` for upcoming work. Tables and migrations are in [`data-model.md`](data-model.md); the scheduling algorithm is in [`../design/srs.md`](../design/srs.md).
 
 ## Overview
 
-MemoLang is a multi-user, server-rendered Go web app for language-learning flashcards (Anki-style). No JS framework, no ORM, no external services besides an optional LLM provider for AI-generated decks.
+MemoLang is a multi-user, server-rendered Go web app for language-learning flashcards (Anki-style). Users import word/verb/phrase packs via CSV (or have an LLM build a deck) and study them through flashcard or multiple-choice sessions. Each deck has a scheduling mode: **SRS** (SM-2 spaced repetition) or **Linear** (sequential, unlearned cards first).
+
+One binary, two modes: `memolang` is the web app; `memolang worker` runs LLM jobs taken from a NATS JetStream queue.
 
 ## Request path
 
 ```
-main.go (entrypoint: opens DB, builds router, listens :8080)
-  → internal/app/app.go       (route table — gin.Engine)
-    → internal/handlers/*.go  (gin.Context in, form parsing, redirect/flash)
-      → internal/models/*.go  (plain SQL via database/sql, one file per entity)
-      → internal/srs/sm2.go   (pure function, no DB — SM-2 spaced-repetition math)
-      → internal/ai/*.go      (LLM provider clients, only touched by AI deck generation)
-    → templates/*.html        (html/template, server-rendered, layout.html + per-page content blocks)
+main.go (entrypoint: opens DB, picks job queue + broker, listens :8080)
+  → internal/app/app.go          (route table — gin.Engine)
+    → internal/middleware/auth.go (session cookie → user on the gin context)
+    → internal/handlers/*.go     (gin.Context in, form parsing, redirect/flash)
+      → internal/models/*.go     (plain SQL via database/sql, one file per entity)
+      → internal/srs/sm2.go      (pure function, no DB — SM-2 math)
+      → internal/assistant/      (tutor + deck builder: prompts, jobs, card scanning)
+        → internal/ai/           (LLM provider clients)
+        → internal/stream/       (Broker: live output from producer to page)
+        → internal/jobs/         (JetStream work queue, worker side)
+    → templates/*.html           (html/template, server-rendered)
 ```
 
 ## Stack
 
-| Layer       | Choice                              |
-|-------------|--------------------------------------|
-| Language    | Go 1.27                              |
-| Router      | gin-gonic/gin                        |
-| Templates   | html/template (stdlib)               |
-| DB          | SQLite via modernc.org/sqlite (pure Go, no CGO) |
-| DB access   | database/sql (stdlib), no ORM        |
-| CSS         | hand-written (`static/style.css`)    |
-| JS          | ~15 lines (`static/card.js`, card-flip animation only) |
-| E2E testing | Playwright (Go bindings), boots the real server against a temp SQLite file; cases share one logged-in browser context |
-
-## Data model (current tables)
-
-```
-users            — id, email (UNIQUE COLLATE NOCASE), password_hash (bcrypt;
-                    '' reserved for future OAuth-only accounts), created_at
-user_sessions    — token (PK, 32 random bytes hex), user_id → users,
-                    created_at, expires_at   (login sessions; distinct from
-                    study_sessions below)
-decks            — id, user_id → users (owner), name, mode ('srs' | 'linear'), created_at
-cards            — id, deck_id → decks, front, back, example, tags,
-                    SM-2 fields (interval, ease, repetitions, due_date), created_at
-study_sessions   — id, deck_id → decks, quiz_mode ('flashcard' | 'mc'),
-                    card_queue (JSON int array), position, correct, total,
-                    started_at, ended_at
-session_answers  — id, session_id → study_sessions, card_id → cards,
-                    correct, given, answered_at   (per-answer record for
-                    feedback screens + summary breakdown)
-settings         — user_id → users, key, value, updated_at
-                    (PK (user_id, key); per-user store, currently only llm.*
-                    keys — API keys are personal data)
-```
-
-Every deck is owned by a user; cards, study sessions and answers inherit that ownership through `deck_id`, so `decks.user_id` is the only owner column. Foreign keys use `ON DELETE CASCADE`, enforced via `PRAGMA foreign_keys = ON` set at connection time (`internal/db/db.go`). Schema is a single `schema.sql` file executed with `CREATE TABLE IF NOT EXISTS` on every startup — idempotent for new tables, but there's no migration tooling for altering existing tables. `db.Open` therefore checks `PRAGMA table_info(decks)` for `user_id` before applying the schema and refuses to start on a pre-auth database, pointing at `task db:reset`.
+| Layer        | Choice |
+|--------------|--------|
+| Language     | Go 1.27 |
+| Router       | gin-gonic/gin |
+| Templates    | html/template (stdlib) |
+| DB           | PostgreSQL 18 via pgx (`github.com/jackc/pgx/v5/stdlib`), behind `database/sql`; no ORM |
+| Queue/stream | NATS JetStream (optional; in-process without `NATS_URL`) |
+| CSS          | hand-written (`static/style.css`) |
+| JS           | progressive enhancement only: `card.js` (flip), `settings.js` (preset prefill), `menu.js` (close on outside click) |
+| E2E testing  | Playwright (Go bindings), against the real server; `task test:integration` runs it against the built image as web + worker containers on Postgres + NATS |
 
 ## Key design decisions
 
-**No ORM, no JS framework.** All DB access is `database/sql` with plain SQL strings in `internal/models/`. All UI is server-rendered Go templates.
+**No ORM, no JS framework.** All DB access is `database/sql` with plain SQL strings in `internal/models/`. All UI is server-rendered Go templates; every page works without JavaScript. Live output is done without JS too (see streaming pages below).
 
-**All mutations are POST + redirect.** HTML forms only support GET/POST, so every write is a `POST` that redirects on success (PRG pattern). Flash messages ride a short-lived cookie (`Max-Age: 5`), set before redirect, read + cleared on the next GET (`Handler.redirectWithFlash` / `Handler.getFlash` in `internal/handlers/handlers.go`).
+**All mutations are POST + redirect.** HTML forms only support GET/POST, so every write is a `POST` that redirects on success (PRG). Flash messages ride a short-lived cookie (`Max-Age: 5`), set before redirect, read + cleared on the next GET (`Handler.redirectWithFlash` / `Handler.getFlash` in `internal/handlers/handlers.go`).
 
-**Session state lives in the DB.** The active study session (card queue as JSON, position, running score) is stored in `study_sessions` so it survives page refresh. `GetActiveSession(db, deckID)` returns nil if none is active. Login sessions live in `user_sessions` and are a separate concept — hence the deliberate naming split (`models.StudySession` vs `internal/models/auth_session.go`).
+**Auth: password login, DB-backed sessions, private decks.** Everything except `/login`, `/register`, `/logout` and `/static` sits behind `middleware.RequireAuth`, which resolves the httpOnly `session` cookie to a user and puts it on the gin context (`currentUserID(c)` reads it back). Ownership is checked at whatever entry point first reads an id from the URL or body: `GetDeckByID(db, userID, id)` and `GetCardByID(db, userID, id)` fold "not yours" into `sql.ErrNoRows`, rendered as 404 — never 403, so nothing leaks about whether the id exists. `SubmitAnswer` and `EndSessionEarly` take an id from the form, so they bind it to an owned deck with `GetSessionByID` before writing. Scoped `UPDATE`/`DELETE` go through `requireRowAffected`, turning a zero-row write into `sql.ErrNoRows` rather than a false "Saved.". Passwords are bcrypt; login answers "Invalid email or password." to every failure. Cookies are `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); `SECURE_COOKIES=1` sets the Secure flag behind TLS.
 
-**Auth and per-user isolation.** `internal/middleware/auth.go` resolves the httpOnly `session` cookie to a user and stores it on the gin context; every route except `/login`, `/register`, `/logout` and `/static` is inside that group in `internal/app/app.go`. Ownership is checked once per request, at whatever entry point first reads an id from the URL or body: `GetDeckByID(db, userID, id)` and `GetCardByID(db, userID, id)` fold "not yours" into `sql.ErrNoRows`, which handlers already render as 404, so nothing leaks about whether the id exists. `SubmitAnswer` and `EndSessionEarly` take a `session_id` from the form, so they bind it to the owned deck with `GetSessionByID(db, deckID, id)` before writing. Scoped `UPDATE`/`DELETE` go through `requireRowAffected`, turning a zero-row write into `sql.ErrNoRows` rather than a false "Saved.". Passwords are bcrypt; login answers "Invalid email or password." to every failure mode. `SameSite=Lax` is the CSRF mitigation for this stage (all mutations are POST); `SECURE_COOKIES=1` turns on the Secure flag for TLS deployments.
+**Session state lives in the DB.** The active study session (card queue as JSON, position, score) is stored in `study_sessions` so it survives a page refresh. `GetActiveSession(db, deckID)` returns nil if none is active. Login sessions (`user_sessions`, `internal/models/auth_session.go`) are a separate concept — hence the naming split from `models.StudySession`.
 
-**Templates share a layout.** `templates/layout.html` defines `_header`/`_footer` blocks; every page template wraps its content between them. Every handler passes a `PageData{Title, Flash, Data}` struct to `h.render()`; `Data` holds the page-specific payload (one struct per page in `internal/handlers/data.go`).
+**Templates share a layout.** `layout.html` wraps every page via `define`/`template` blocks. Every handler passes a `PageData{Title, Flash, User, Data}` struct; `h.render` fills in `User` (for the nav) and shared chrome, and is the only `c.HTML` call. `Data` holds the page-specific payload (one struct per page in `internal/handlers/data.go`).
 
-**In-memory pending-state caches.** Two flows use a process-local `sync.Map` keyed by a random token instead of persisting to the DB: the AI deck-generation form (`Handler.pending` — survives the processing-page redirect chain) and CSV import preview (`importCache` in `internal/handlers/import.go` — holds parsed rows between preview and execute steps). Both are single-instance-only caches; they don't survive a restart and wouldn't be shared across replicas.
+**LLM provider abstraction.** `internal/ai` defines `Provider` (`Ping`, `Chat` — streaming on both transports) with two implementations over plain `net/http` + `encoding/json`, no SDKs: native Anthropic Messages API, and OpenAI-compatible chat completions (Ollama, OpenAI, LM Studio, custom). A user's configurations live in `llm_providers`; `ai.LoadConfig` reads the active one per request, so a switch applies immediately.
 
-**LLM provider abstraction.** `internal/ai/` defines a `Provider` interface (`GenerateCards`, `Ping`) with two implementations: `anthropic.go` (native Anthropic Messages API) and `openai_compat.go` (OpenAI chat-completions format, used for Ollama/OpenAI/LM Studio/custom — all speak the same wire format). Both are plain `net/http` + `encoding/json`, no SDKs. Config is loaded per-request from the `settings` table (`ai.LoadConfig`) — no caching, so settings changes apply immediately.
+## Streaming pages (AI tutor, deck builder)
 
-**SM-2 algorithm.** `internal/srs/sm2.go` is a pure function (`Update(state, rating) (newState, dueDate)`) with no DB access — easy to unit test in isolation, called by handlers which then persist the result via `models.UpdateCardSRS`.
+LLM replies stream into the page with no JavaScript:
+
+1. The POST stores the question, hands generation to the job queue, and 303s to the GET.
+2. The GET writes the page's top half, flushes, writes each reply chunk HTML-escaped and flushed as it arrives, then the bottom half (`renderChat` in `internal/handlers/chat.go`; shared partials in `templates/chat.html`).
+3. The producer publishes to a `stream.Broker`, so a reload reattaches to the same reply and a closed tab doesn't cancel a paid call.
+
+Model output is untrusted: always escape it.
+
+The deck builder's replies can end in a ` ```deck {json} ``` ` plan block (`assistant.ExtractDeckPlan`); `assistant.PlanFilter` hides it while streaming and the page shows it as a card whose Generate button posts only the message id. Generate (`assistant.GenerateDeck`) creates the deck at once; card generation streams the model's JSON array through `cardScanner`, saving each card the moment its object closes and publishing one JSON event line per card for `/decks/:id/generating`.
+
+Background LLM calls end on an idle watchdog (no output — reasoning included — for 2 minutes) with a 15-minute backstop, not a fixed deadline.
+
+## Background work: web + worker
+
+Chat replies and card generation are an `assistant.Job` (ids and the prepared request — never an API key) handed to a `JobQueue`.
+
+- **Without `NATS_URL`** (`task dev`, tests): the web app runs jobs in-process with the in-memory broker (`stream.Memory`).
+- **With `NATS_URL`**: the web app enqueues on a JetStream work queue (`internal/jobs`, stream `MEMOLANG_JOBS`) and follows output through the JetStream broker (`stream.JetStream`, stream `MEMOLANG_REPLIES`). Workers heartbeat running jobs; a dead worker's job is redelivered after `JOBS_ACK_WAIT` (default 1m). On redelivery a chat reply is marked interrupted, while a deck generation resumes. Workers expose `/healthz` on :8081.
 
 ## CSV import flow
 
-Two-step POST: `?step=preview` parses the uploaded file and re-renders the form with a preview table (rows cached in-memory under a token); `?step=execute` re-reads the cached rows and bulk-inserts in a single transaction. Duplicate fronts within a deck are skipped via `INSERT OR IGNORE` (backed by a `UNIQUE INDEX` on `(deck_id, front)`).
+Two-step POST: `?step=preview` parses the upload and re-renders the form with a preview table (rows held in the process-local `importCache` under a token); `?step=execute` takes the cached rows and bulk-inserts in one transaction. Duplicate fronts within a deck are skipped via `ON CONFLICT (deck_id, front) DO NOTHING`.
+
+## Configuration
+
+| Env var          | Effect |
+|------------------|--------|
+| `DATABASE_URL`   | Postgres DSN. Required in production; the dev build (`-tags dev`) falls back to embedded Postgres in `./.pgdata` |
+| `NATS_URL`       | Enables the JetStream queue + broker; required for `memolang worker` |
+| `JOBS_ACK_WAIT`  | Redelivery delay for a job whose worker stopped heartbeating (default 1m) |
+| `SECURE_COOKIES` | `1` sets the Secure flag on cookies (TLS deployments) |
 
 ## Deployment
 
-`Dockerfile` — two-stage build, `golang:1.27-alpine` builder → `alpine:3.21` runtime, `CGO_ENABLED=0`. `.github/workflows/docker.yml` builds and pushes to `ghcr.io/tj-dorje/memolang` on every push to `main` (tags: `latest` + commit sha). `DB_PATH` env var overrides the default `memolang.db` file path (Docker support).
+`Dockerfile` — two-stage build, `golang:1.27-alpine` builder → `alpine:3.21` runtime. `.github/workflows/docker.yml` builds and pushes `ghcr.io/tj-dorje/memolang` on every push to `main`. The same image runs as web (`memolang`) and worker (`memolang worker`) against Postgres and NATS JetStream.
 
 ## Known gaps (as-is, not a todo list)
 
-- No migration tooling beyond idempotent `CREATE TABLE IF NOT EXISTS` (startup guard only refuses to run, it cannot migrate)
 - No CSRF tokens — `SameSite=Lax` only
-- No rate limiting on login, and registration is open to anyone who can reach the server
-- No password reset or email verification; expired `user_sessions` rows are never swept
-- OAuth/WorkOS not implemented — `users` is decoupled from how an account authenticated, so it stays additive
-- In-memory caches (`pending`, `importCache`) are single-instance-only
+- No rate limiting on login; registration is open, with no email verification, password reset or MFA
+- Expired `user_sessions` rows are never swept
+- OAuth not implemented — `users` is decoupled from how an account authenticated, so it stays additive
+- `importCache` is process-local: a CSV preview and its execute must hit the same replica

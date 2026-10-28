@@ -6,9 +6,9 @@ Open items are listed first; everything below them is resolved.
 |---|--------|---------|
 | ISS-017 | 🔲 Open — **before publishing** | AI assistant must stay on topic (language learning / deck building). Today only the prompt keeps it there; a real model will happily answer programming questions. See "ISS-017 detail" below |
 | ISS-018 | 🔲 Planned — production stability | Scale past one pod: PostgreSQL instead of SQLite (prerequisite), a NATS JetStream `stream.Broker`, then a worker Deployment consuming LLM jobs so deploys and crashes don't kill in-flight generations. See `docs/plans/SCALING_PLAN.md` |
-| ISS-019 | 🔲 Intake — **before publishing** | Registration has no email confirmation (any address, real or not, gets an account) and login is password-only. Production needs verified emails and optional MFA. See "ISS-019 detail" below |
-| ISS-021 | 🔲 Intake | Projects: decks live under a project ("Learn Spanish") holding language, goal, level and agent notes — the context for ISS-020 and M11. See "ISS-021 detail" below |
-| ISS-020 | 🔲 Intake | "Generate more cards" for a finished deck: new cards for the same topic, none repeating what the deck has; decks capped at 300 cards, ≤50 per generation, big CSV imports split. After ISS-021. See "ISS-020 detail" below |
+| ISS-019 | 🔲 Ready to plan — **before publishing** | Registration has no email confirmation (any address, real or not, gets an account) and login is password-only. Production needs verified emails and optional MFA. See "ISS-019 detail" below |
+| ISS-021 | 🔲 Ready to plan | Projects: decks live under a project ("Learn Spanish") holding language, goal, level and agent notes — the context for ISS-020 and M11. See "ISS-021 detail" below |
+| ISS-020 | 🔲 Ready to plan | "Generate more cards" for a finished deck: new cards for the same topic, none repeating what the deck has; decks capped at 300 cards, ≤50 per generation, big CSV imports split. After ISS-021. See "ISS-020 detail" below |
 | ISS-001 | ✅ Fixed | `card.js` now loaded in `session.html`; inline `revealCard()` removed |
 | ISS-002 | ✅ Fixed | Dead `PageData`, `render`, flash helpers deleted from `main.go` |
 | ISS-003 | ✅ Fixed | Empty stub files `srs.go` and `models.go` deleted |
@@ -68,7 +68,17 @@ References: [Laya on Hugging Face](https://huggingface.co/convaiinnovations/laya
 
 **Decided (2026-10-25): option A, in-app.** TOTP is the MFA; passkeys can come later.
 
-**Open questions:** mail provider; should existing test accounts be force-verified or wiped at launch; is MFA opt-in or required.
+**Decided (grill session 2026-10-26):**
+- **Mail goes out over plain SMTP**, configured by env (host, port, user, password from the cluster Secret, from-address). The provider is chosen later and changing it is config only. In dev, mail is written to the log.
+- **An unverified account can't log in.** Register shows "check your inbox". Login refuses with a "resend link" button. Changing your email address requires verifying the new one.
+- **MFA is optional:** TOTP is turned on in Profile → Security, and recovery codes are shown once when it's enabled.
+- **Existing accounts are marked verified** by the migration. Production holds only the owner's accounts.
+- **Replies don't reveal which emails have accounts:**
+  - Register always says "check your inbox". An address that already has an account gets a "someone tried to register" mail instead.
+  - Login says "verify your email" only after the correct password.
+  - Password reset always says "if that account exists, we sent a link".
+- **Rate limits are kept in Postgres** (an attempts table keyed by IP and by email), so they hold across several web pods. Starting values: 5 failed logins per email per 15 minutes, and 5 TOTP tries per login.
+- **Tokens are stored hashed (SHA-256):** session tokens, plus the new verification and reset tokens. A leaked database or backup can't be replayed as live logins.
 
 ## ISS-020 detail — "Generate more cards" for a finished deck (intake, 2026-10-25)
 
@@ -94,7 +104,12 @@ References: [Laya on Hugging Face](https://huggingface.co/convaiinnovations/laya
 
 **Flow (no JS, reuses existing pages):** `POST /decks/:id/generate-more` (count) → enqueue `JobGenerate` with the stored spec + exclusion list → 303 to the existing `/decks/:id/generating` progress page.
 
-**Open questions:** default count (20?); is the summary screen the right place for the button, or only when the deck has nothing new left to study.
+**Decided (grill session 2026-10-26):**
+- **Default count 20**, at most `min(50, 300 − cards in deck)`.
+- **Button on the deck page always** (while under 300), and **on the session summary after every session**: a plain link normally, and the main button with "You've seen every card in this deck" once nothing unseen is left.
+- **A full deck offers a new deck in the same project** that continues the topic ("Food 2"), checked for repeats against the whole project.
+- **Difficulty progression is later** (with M11). v1 sends topic, level and existing fronts.
+- Repeat check keeps accents: in Spanish *si* and *sí* are different words. Normalizing means lower-case, trim, collapse spaces, strip surrounding punctuation only.
 
 ## ISS-021 detail — Projects: a container for decks (intake, 2026-10-25)
 
@@ -110,8 +125,12 @@ References: [Laya on Hugging Face](https://huggingface.co/convaiinnovations/laya
 
 **Order:** ISS-021 → ISS-020 (stores its language/goal here, dedupes project-wide) → M11 (`docs/plans/ASSISTANT_AGENT_PLAN.md` needs its scope updated from deck to project).
 
-**Open questions:**
-- Must every deck be in a project, or may decks stand alone? (Required is simpler for the agent; production started empty, so no migration of old decks is needed either way.)
-- One language per project, or allow mixed?
-- Study across a whole project (one SRS session over all its decks' due cards), or per deck only — now or later?
-- Cap on decks per project?
+**Decided (grill session 2026-10-26):**
+- **Every deck is in a project** (`decks.project_id NOT NULL`). Production started empty, so nothing to migrate. Forms that create a deck (new, CSV import, deck builder) default to the user's last-used project.
+- **Exactly one target language per project.**
+- **Study stays per deck in v1.** A project-wide "study all due" session is a later change (`study_sessions` is keyed by deck).
+- **At most 20 decks per project** (≤ 6,000 cards). A CSV split that would go past 20 is refused at preview.
+- **The learner's own language is a per-user profile setting** (default English), replacing the hardcoded "translation in English" in `CardGenerationPrompt`. Every project uses it.
+- **Projects are created with a short form**: name, target language, level, goal. No LLM call, works without a provider. The deck builder then starts inside the project at "which topic?".
+- **Notes are visible and editable by the learner** on the project page, as plain text. The agent changes them only by proposal.
+- **Decks can't move between projects in v1.**
