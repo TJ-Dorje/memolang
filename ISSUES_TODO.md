@@ -9,6 +9,7 @@ Open items are listed first; everything below them is resolved.
 | ISS-019 | 🔲 Ready to plan — **before publishing** | Registration has no email confirmation (any address, real or not, gets an account) and login is password-only. Production needs verified emails and optional MFA. See "ISS-019 detail" below |
 | ISS-021 | 🔲 Ready to plan | Projects: decks live under a project ("Learn Spanish") holding language, goal, level and agent notes — the context for ISS-020 and M11. See "ISS-021 detail" below |
 | ISS-020 | 🔲 Ready to plan | "Generate more cards" for a finished deck: new cards for the same topic, none repeating what the deck has; decks capped at 300 cards, ≤50 per generation, big CSV imports split. After ISS-021. See "ISS-020 detail" below |
+| ISS-022 | 🔲 Open — cleanup | Dead code: `Handler.pending` (`sync.Map`) and its `storePending`/`loadPending` helpers in `internal/handlers/handlers.go` have no callers left — leftover from the old AI deck-generation form's redirect chain, which streaming generation replaced. Delete them |
 | ISS-001 | ✅ Fixed | `card.js` now loaded in `session.html`; inline `revealCard()` removed |
 | ISS-002 | ✅ Fixed | Dead `PageData`, `render`, flash helpers deleted from `main.go` |
 | ISS-003 | ✅ Fixed | Empty stub files `srs.go` and `models.go` deleted |
