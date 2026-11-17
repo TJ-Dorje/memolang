@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"database/sql"
 	"sync"
 	"testing"
@@ -100,5 +102,47 @@ func TestFailedMigrationIsNotRecorded(t *testing.T) {
 	}
 	if got := count(t, database, "SELECT MAX(version) FROM schema_migrations"); got != saved[len(saved)-1].version {
 		t.Errorf("version after a failed migration = %d, want it unchanged", got)
+	}
+}
+
+// Migration 2 hashes session tokens in place: a login made before the upgrade
+// must still resolve afterwards by the hash of its raw cookie value, and
+// accounts that existed before verification count as verified.
+func TestMigration2KeepsSessionsAndVerifiesExistingUsers(t *testing.T) {
+	dsn := pgtest.EmptyDatabase(t)
+	database, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	t.Cleanup(func() { database.Close() })
+	ctx := context.Background()
+
+	if err := migrateTo(ctx, database, 1); err != nil {
+		t.Fatalf("migrate to 1: %v", err)
+	}
+	var userID int64
+	if err := database.QueryRow(
+		"INSERT INTO users (email, password_hash) VALUES ('old@example.com', 'x') RETURNING id",
+	).Scan(&userID); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	const raw = "aabbcc"
+	if _, err := database.Exec(
+		"INSERT INTO user_sessions (token, user_id, expires_at) VALUES ($1, $2, now() + interval '1 hour')",
+		raw, userID,
+	); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+
+	if err := migrateTo(ctx, database, 2); err != nil {
+		t.Fatalf("migrate to 2: %v", err)
+	}
+
+	sum := sha256.Sum256([]byte(raw))
+	if n := count(t, database, "SELECT COUNT(*) FROM user_sessions WHERE token_hash = $1", hex.EncodeToString(sum[:])); n != 1 {
+		t.Errorf("sessions matching the hashed token = %d, want 1", n)
+	}
+	if n := count(t, database, "SELECT COUNT(*) FROM users WHERE email_verified_at IS NULL"); n != 0 {
+		t.Errorf("unverified users after migration = %d, want 0", n)
 	}
 }

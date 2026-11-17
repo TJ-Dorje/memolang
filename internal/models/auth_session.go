@@ -2,6 +2,7 @@ package models
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -16,8 +17,8 @@ func CreateUserSession(db *sql.DB, userID int64, ttl time.Duration) (string, err
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO user_sessions (token, user_id, expires_at) VALUES ($1, $2, $3)",
-		token, userID, time.Now().Add(ttl),
+		"INSERT INTO user_sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)",
+		hashToken(token), userID, time.Now().Add(ttl),
 	)
 	if err != nil {
 		return "", err
@@ -29,11 +30,11 @@ func CreateUserSession(db *sql.DB, userID int64, ttl time.Duration) (string, err
 // token is not an error: it returns nil, nil.
 func GetUserByToken(db *sql.DB, token string) (*User, error) {
 	u, err := scanUser(db.QueryRow(
-		`SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at
+		`SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at, u.email_verified_at
 		 FROM user_sessions s
 		 JOIN users u ON u.id = s.user_id
-		 WHERE s.token = $1 AND s.expires_at > now()`,
-		token,
+		 WHERE s.token_hash = $1 AND s.expires_at > now()`,
+		hashToken(token),
 	))
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -45,7 +46,7 @@ func GetUserByToken(db *sql.DB, token string) (*User, error) {
 }
 
 func DeleteUserSession(db *sql.DB, token string) error {
-	_, err := db.Exec("DELETE FROM user_sessions WHERE token = $1", token)
+	_, err := db.Exec("DELETE FROM user_sessions WHERE token_hash = $1", hashToken(token))
 	return err
 }
 
@@ -64,7 +65,7 @@ func CountUserSessions(db *sql.DB, userID int64) (int, error) {
 // password change and by "sign out everywhere else": a stolen session must
 // not outlive either.
 func DeleteOtherUserSessions(db *sql.DB, userID int64, keepToken string) (int64, error) {
-	res, err := db.Exec("DELETE FROM user_sessions WHERE user_id = $1 AND token != $2", userID, keepToken)
+	res, err := db.Exec("DELETE FROM user_sessions WHERE user_id = $1 AND token_hash != $2", userID, hashToken(keepToken))
 	if err != nil {
 		return 0, err
 	}
@@ -80,4 +81,14 @@ func newSessionToken() (string, error) {
 		return "", fmt.Errorf("generate session token: %w", err)
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// hashToken is how a secret token is stored: hex(sha256(token)). The cookie
+// (or email) carries the raw value; the database only ever sees the hash, so
+// a leaked database or backup can't be replayed. A plain fast hash is right
+// here, unlike for passwords: the token is 256 random bits, not guessable,
+// and it is checked on every request.
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }

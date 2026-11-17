@@ -1,6 +1,8 @@
 package models_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -74,5 +76,44 @@ func TestGetUserByTokenUnknown(t *testing.T) {
 	}
 	if got != nil {
 		t.Fatalf("GetUserByToken = %v, want nil", got)
+	}
+}
+
+// The cookie value must never be stored: a leaked database or backup would
+// otherwise be a list of live logins.
+func TestUserSessionStoresOnlyTokenHash(t *testing.T) {
+	database := testDB(t)
+
+	user, err := models.CreateUser(database, "alice@example.com", "hash")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := models.CreateUserSession(database, user.ID, time.Hour)
+	if err != nil {
+		t.Fatalf("CreateUserSession: %v", err)
+	}
+
+	var raw, hashed int
+	if err := database.QueryRow("SELECT COUNT(*) FROM user_sessions WHERE token_hash = $1", token).Scan(&raw); err != nil {
+		t.Fatalf("count raw: %v", err)
+	}
+	sum := sha256.Sum256([]byte(token))
+	if err := database.QueryRow("SELECT COUNT(*) FROM user_sessions WHERE token_hash = $1", hex.EncodeToString(sum[:])).Scan(&hashed); err != nil {
+		t.Fatalf("count hashed: %v", err)
+	}
+	if raw != 0 || hashed != 1 {
+		t.Fatalf("rows by raw token = %d, by sha256 = %d; want 0 and 1", raw, hashed)
+	}
+}
+
+func TestNewUserIsUnverified(t *testing.T) {
+	database := testDB(t)
+
+	user, err := models.CreateUser(database, "alice@example.com", "hash")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if user.Verified() {
+		t.Fatal("a freshly created user is verified, want unverified")
 	}
 }

@@ -16,7 +16,13 @@ type User struct {
 	// DisplayName is optional; "" means not set. Use Name for display.
 	DisplayName string
 	CreatedAt   time.Time
+	// EmailVerifiedAt is when the user proved they own Email; nil until then.
+	// An unverified account can't log in.
+	EmailVerifiedAt *time.Time
 }
+
+// Verified reports whether the user has confirmed their email address.
+func (u User) Verified() bool { return u.EmailVerifiedAt != nil }
 
 // Name is what the UI calls the user: their display name, or their email
 // until they set one.
@@ -32,7 +38,7 @@ var ErrEmailTaken = errors.New("email already registered")
 
 // userColumns and scanUser keep every query that loads a User in step, so a
 // new column is added in one place instead of four.
-const userColumns = "id, email, password_hash, display_name, created_at"
+const userColumns = "id, email, password_hash, display_name, created_at, email_verified_at"
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -40,7 +46,7 @@ type rowScanner interface {
 
 func scanUser(row rowScanner) (User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.CreatedAt, &u.EmailVerifiedAt)
 	return u, err
 }
 

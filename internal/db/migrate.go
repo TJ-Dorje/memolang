@@ -21,6 +21,7 @@ type migration struct {
 // add a new file instead.
 var migrations = []migration{
 	{version: 1, file: "0001_baseline.sql"},
+	{version: 2, file: "0002_verified_email.sql"},
 }
 
 // migrationLockKey names the Postgres advisory lock held while migrating.

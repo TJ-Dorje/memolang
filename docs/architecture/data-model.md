@@ -7,9 +7,14 @@ PostgreSQL 18, accessed through `database/sql` with the pgx driver. The source o
 ```
 users                 — id, email, password_hash (bcrypt; '' reserved for future
                         OAuth-only accounts), display_name (optional; User.Name()
-                        falls back to email), created_at
-user_sessions         — token (PK), user_id → users, created_at, expires_at
-                        (login sessions; distinct from study_sessions)
+                        falls back to email), created_at, email_verified_at
+                        (NULL = unverified, can't log in)
+user_sessions         — token_hash (PK, hex sha256 of the cookie value), user_id → users,
+                        created_at, expires_at (login sessions; distinct from study_sessions)
+email_codes           — (user_id, purpose) PK, code_hash, new_email (set iff
+                        purpose = 'change_email'), attempts, created_at, expires_at;
+                        purpose ∈ verify | reset | change_email
+auth_attempts         — id, kind, key, created_at (rate-limit events, counted per window)
 decks                 — id, user_id → users (owner), name, mode ('srs' | 'linear'), created_at
 cards                 — id, deck_id → decks, front, back, example, tags,
                         SM-2 fields (interval_days, ease, repetitions, due_date),
@@ -29,6 +34,8 @@ conversation_messages — id, conversation_id → conversations, role ('user' | 
 ```
 
 Every deck is owned by a user; cards, study sessions and answers inherit ownership through `deck_id`, so `decks.user_id` is the only owner column on that branch. Foreign keys are `ON DELETE CASCADE`, so `DeleteUser` removes everything the account owns.
+
+Secrets are stored hashed: `user_sessions.token_hash` and `email_codes.code_hash` hold `hex(sha256(value))` (`models.hashToken`); the raw value lives only in the cookie or the email. See `docs/plans/verified-auth-plan.md`.
 
 Constraints the database enforces:
 
