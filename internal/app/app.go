@@ -7,6 +7,7 @@ import (
 
 	"memolang/internal/assistant"
 	"memolang/internal/handlers"
+	"memolang/internal/mail"
 	"memolang/internal/stream"
 	"memolang/internal/middleware"
 
@@ -15,7 +16,9 @@ import (
 
 // NewRouter builds the web app. svc runs the assistant's background work;
 // nil gives the in-process default (in-memory broker, jobs in goroutines).
-func NewRouter(database *sql.DB, svc *assistant.Service) *gin.Engine {
+// mailer sends verification codes and security notices; nil writes them to
+// the log.
+func NewRouter(database *sql.DB, svc *assistant.Service, mailer mail.Mailer) *gin.Engine {
 	r := gin.Default()
 	r.SetFuncMap(template.FuncMap{
 		"add": func(a, b int) int { return a + b },
@@ -30,7 +33,10 @@ func NewRouter(database *sql.DB, svc *assistant.Service) *gin.Engine {
 	if svc == nil {
 		svc = assistant.New(database, stream.NewMemory())
 	}
-	h := handlers.New(database, r.HTMLRender, svc)
+	if mailer == nil {
+		mailer = mail.LogMailer{}
+	}
+	h := handlers.New(database, r.HTMLRender, svc, mailer)
 
 	// Public routes.
 	r.GET("/login", h.LoginForm)

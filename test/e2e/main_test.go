@@ -85,7 +85,7 @@ func startInProcess(fakeLLM *httptest.Server) (cleanup func()) {
 		panic(err)
 	}
 	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", ln.Addr().(*net.TCPAddr).Port)
-	go http.Serve(ln, app.NewRouter(database, nil))
+	go http.Serve(ln, app.NewRouter(database, nil, nil))
 
 	return func() {
 		database.Close()

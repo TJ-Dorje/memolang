@@ -5,6 +5,15 @@ tasks:
     desc: Run the development server (embedded PostgreSQL in ./.pgdata unless DATABASE_URL is set)
     cmd: go run -tags dev .
 
+  dev:mail:
+    desc: Run the dev server sending real SMTP to a local Mailpit (start `mailpit` first; inbox at http://localhost:8025)
+    env:
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      SMTP_TLS: none
+      MAIL_FROM: "MemoLang <no-reply@memolang.local>"
+    cmd: go run -tags dev .
+
   build:
     desc: Compile the binary
     cmd: go build -o memolang .

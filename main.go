@@ -17,6 +17,7 @@ import (
 	"memolang/internal/assistant"
 	"memolang/internal/db"
 	"memolang/internal/jobs"
+	"memolang/internal/mail"
 	"memolang/internal/stream"
 )
 
@@ -57,7 +58,7 @@ func runWeb(ctx context.Context, database *sql.DB) {
 		log.Println("Background work: in-process (NATS_URL not set)")
 	}
 
-	server := &http.Server{Addr: ":8080", Handler: app.NewRouter(database, svc)}
+	server := &http.Server{Addr: ":8080", Handler: app.NewRouter(database, svc, mailer())}
 	serve(ctx, server, "MemoLang server starting on :8080")
 }
 
@@ -84,6 +85,26 @@ func runWorker(ctx context.Context, database *sql.DB) {
 		log.Fatalf("worker: %v", err)
 	}
 	log.Println("Worker: stopped")
+}
+
+// mailer builds the mail sender from SMTP_* settings. Without SMTP_HOST,
+// mail goes to the log: right for development, but in production it means
+// codes sit in the logs and nobody can verify by email, so say so loudly.
+func mailer() mail.Mailer {
+	m, err := mail.FromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, ok := m.(mail.LogMailer); ok && startDevDB == nil {
+		log.Println("WARNING: SMTP_HOST not set — emails (including login codes) are written to the log, not sent")
+		return m
+	}
+	if _, ok := m.(mail.LogMailer); ok {
+		log.Println("Mail: written to the log (SMTP_HOST not set)")
+		return m
+	}
+	log.Printf("Mail: SMTP via %s", os.Getenv("SMTP_HOST"))
+	return m
 }
 
 // connectNATS connects to NATS_URL, or returns nil when it is unset and not

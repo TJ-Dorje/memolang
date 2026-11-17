@@ -84,6 +84,11 @@ Two-step POST: `?step=preview` parses the upload and re-renders the form with a 
 | `NATS_URL`       | Enables the JetStream queue + broker; required for `memolang worker` |
 | `JOBS_ACK_WAIT`  | Redelivery delay for a job whose worker stopped heartbeating (default 1m) |
 | `SECURE_COOKIES` | `1` sets the Secure flag on cookies (TLS deployments) |
+| `SMTP_HOST`      | Enables sending mail over SMTP (`internal/mail`); unset = mail is written to the log (dev). `task dev:mail` points it at a local Mailpit |
+| `SMTP_PORT`      | Default 587 |
+| `SMTP_USER`, `SMTP_PASSWORD` | SMTP login (password from the cluster Secret); no user = no auth (Mailpit) |
+| `SMTP_TLS`       | `starttls` (default, required — no clear-text fallback), `tls` (implicit, port 465) or `none` (local catcher only) |
+| `MAIL_FROM`      | Sender, e.g. `MemoLang <no-reply@mail.example.com>`; required with `SMTP_HOST` |
 
 ## Deployment
 

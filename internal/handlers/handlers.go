@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"memolang/internal/assistant"
+	"memolang/internal/mail"
 	"memolang/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +31,8 @@ type PageData struct {
 type Handler struct {
 	DB        *sql.DB
 	Assistant *assistant.Service
+	// Mail sends verification codes and security notices.
+	Mail mail.Mailer
 	// HTML is the engine's template renderer, for pages written in parts
 	// (renderPart). It follows gin's mode, so templates still reload from
 	// disk in debug.
@@ -38,8 +41,8 @@ type Handler struct {
 	token   string
 }
 
-func New(db *sql.DB, html render.HTMLRender, svc *assistant.Service) *Handler {
-	return &Handler{DB: db, Assistant: svc, HTML: html}
+func New(db *sql.DB, html render.HTMLRender, svc *assistant.Service, mailer mail.Mailer) *Handler {
+	return &Handler{DB: db, Assistant: svc, HTML: html, Mail: mailer}
 }
 
 func (h *Handler) storePending(data any) string {
