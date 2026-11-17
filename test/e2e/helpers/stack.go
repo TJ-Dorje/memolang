@@ -102,6 +102,9 @@ func (s *Stack) start() error {
 		"NATS_URL":      "nats://nats:4222",
 		"JOBS_ACK_WAIT": workerAckWait,
 		"GIN_MODE":      "release",
+		// Every case connects from the same address; per-email limits
+		// still apply.
+		"AUTH_IP_LIMITS": "off",
 	}
 	s.FakeLLMURL = "http://" + testcontainers.HostInternal + ":" + strconv.Itoa(s.fakePort)
 

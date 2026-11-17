@@ -44,6 +44,14 @@ func (h *Handler) Forgot(c *gin.Context) {
 		return
 	}
 
+	if !h.takeMailSlot(c, email) {
+		h.render(c, http.StatusOK, "forgot.html", PageData{
+			Title: "Forgot password",
+			Data:  ResetData{Email: email, Error: tooManyMails},
+		})
+		return
+	}
+
 	user, err := models.GetUserByEmail(h.DB, email)
 	if err == nil && user != nil {
 		h.sendResetCode(c, user)

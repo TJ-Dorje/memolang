@@ -67,9 +67,11 @@ Password changed, email changed (to the old address), MFA turned on/off, recover
 ### Rate limits (`auth_attempts`)
 
 - One row per counted event: `(kind, key, created_at)`; a check is `COUNT(*)` over the window. In Postgres, so limits hold across several web pods.
-- Kinds: login failures per `email+ip`, per `email`, per `ip`; mails sent per `email` (3/hour) and per `ip` (20/hour); code tries are capped on the code row itself.
+- Kinds: login failures per `email+ip`, per `email`, per `ip`; mails sent per `email` (5/hour — every new code resets its 5 tries, so this caps guessing at 25 tries an hour) and per `ip` (30/hour); code tries are capped on the code row itself.
 - Behind the ingress, the client IP comes from `X-Forwarded-For`, trusted only from the proxies in `TRUSTED_PROXIES` (gin `SetTrustedProxies`). Unset = trust none, use the socket address.
 - Old rows (>24 h) and expired unverified accounts (>7 days) are deleted by a periodic sweep in the web process.
+- Why Postgres, not in memory (`x/time/rate`): in-memory counts are per pod (N pods allow N× the tries) and reset on every deploy. Writes happen only on failures and sent mails, so the cost is one indexed `COUNT` per check. An in-memory per-IP flood guard in front is possible later; it isn't needed at this scale.
+- `AUTH_IP_LIMITS=off` disables only the per-IP limits, for the test suites (every case connects from one address); startup logs a warning. Per-email limits always apply.
 
 ### Mail (`internal/mail`)
 

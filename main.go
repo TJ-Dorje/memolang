@@ -16,8 +16,10 @@ import (
 	"memolang/internal/app"
 	"memolang/internal/assistant"
 	"memolang/internal/db"
+	"memolang/internal/handlers"
 	"memolang/internal/jobs"
 	"memolang/internal/mail"
+	"memolang/internal/models"
 	"memolang/internal/stream"
 )
 
@@ -58,6 +60,11 @@ func runWeb(ctx context.Context, database *sql.DB) {
 		log.Println("Background work: in-process (NATS_URL not set)")
 	}
 
+	if !handlers.IPLimitsEnabled() {
+		log.Println("WARNING: AUTH_IP_LIMITS=off — per-IP rate limits are disabled (test suites only)")
+	}
+	go sweepAuth(ctx, database)
+
 	server := &http.Server{Addr: ":8080", Handler: app.NewRouter(database, svc, mailer())}
 	serve(ctx, server, "MemoLang server starting on :8080")
 }
@@ -85,6 +92,24 @@ func runWorker(ctx context.Context, database *sql.DB) {
 		log.Fatalf("worker: %v", err)
 	}
 	log.Println("Worker: stopped")
+}
+
+// sweepAuth deletes expired codes, old rate-limit events and accounts that
+// never confirmed their email, at start and then hourly. Several web pods
+// may each run it; the deletes are idempotent.
+func sweepAuth(ctx context.Context, database *sql.DB) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		if err := models.SweepAuth(database); err != nil {
+			log.Printf("auth sweep: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // mailer builds the mail sender from SMTP_* settings. Without SMTP_HOST,

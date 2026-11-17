@@ -87,6 +87,10 @@ func (h *Handler) Verify(c *gin.Context) {
 // account, and nothing otherwise — but always answers the same way.
 func (h *Handler) ResendVerify(c *gin.Context) {
 	email := models.NormalizeEmail(c.PostForm("email"))
+	if !h.takeMailSlot(c, email) {
+		h.redirectWithFlash(c, verifyURL(email), tooManyMails)
+		return
+	}
 
 	user, err := models.GetUserByEmail(h.DB, email)
 	if err == nil && user != nil && !user.Verified() {

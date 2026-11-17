@@ -47,7 +47,9 @@ main.go (entrypoint: opens DB, picks job queue + broker, listens :8080)
 
 **Verified email (ISS-019, `docs/plans/verified-auth-plan.md`).** Registration creates an unverified account and redirects to `/verify`, where the user types a 6-digit code from the email (`models.IssueCode` / `VerifyEmail`: hashed, 15 min, 5 tries, single use, one live code per user and purpose); a correct code logs them in. An unverified account can't log in — the right password re-sends a code and shows `/verify`. Replies never reveal which addresses have accounts: registering a verified address mails its owner a notice and shows the same page; registering an unverified one takes it over (new password, new code). Mails carry codes, never links (`handlers/authmail.go`), and go through `internal/mail`.
 
-**Password reset and email change.** `/forgot` always answers "if that account exists, we sent a code"; `/reset` takes the code and the new password in one form (`models.ResetPassword`: sets the password, verifies the address, ends every session) and logs the user in. Changing the email (Profile → Security) needs the current password, mails a code to the new address and a notice to the old; the address changes only when the code is typed (`models.ChangeEmail`), and the pending change shows with Cancel. A new address that belongs to another account gets a notice instead of a code. Password and email changes send a notice mail after the fact. Cookies are `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); `SECURE_COOKIES=1` sets the Secure flag behind TLS.
+**Password reset and email change.** `/forgot` always answers "if that account exists, we sent a code"; `/reset` takes the code and the new password in one form (`models.ResetPassword`: sets the password, verifies the address, ends every session) and logs the user in. Changing the email (Profile → Security) needs the current password, mails a code to the new address and a notice to the old; the address changes only when the code is typed (`models.ChangeEmail`), and the pending change shows with Cancel. A new address that belongs to another account gets a notice instead of a code. Password and email changes send a notice mail after the fact.
+
+**Rate limits** (`handlers/ratelimit.go`, counts in `auth_attempts`, so they hold across pods and restarts). Failed logins: 5 per (email, IP), 20 per email, 50 per IP, each per 15 minutes, checked before the password; the lockout message points to password reset, which stays open. Mails sent on anonymous requests (codes, register notices): 5 per address and 30 per IP per hour, claimed before the address is looked up and before a code is issued. A sweeper in the web process (`models.SweepAuth`, hourly) deletes old events, expired codes, and unverified accounts older than 7 days. Cookies are `SameSite=Lax` (the CSRF mitigation for now, since every mutation is a POST); `SECURE_COOKIES=1` sets the Secure flag behind TLS.
 
 **Session state lives in the DB.** The active study session (card queue as JSON, position, score) is stored in `study_sessions` so it survives a page refresh. `GetActiveSession(db, deckID)` returns nil if none is active. Login sessions (`user_sessions`, `internal/models/auth_session.go`) are a separate concept — hence the naming split from `models.StudySession`.
 
@@ -92,6 +94,8 @@ Two-step POST: `?step=preview` parses the upload and re-renders the form with a 
 | `SMTP_PORT`      | Default 587 |
 | `SMTP_USER`, `SMTP_PASSWORD` | SMTP login (password from the cluster Secret); no user = no auth (Mailpit) |
 | `SMTP_TLS`       | `starttls` (default, required — no clear-text fallback), `tls` (implicit, port 465) or `none` (local catcher only) |
+| `TRUSTED_PROXIES` | Comma-separated IPs/CIDRs of the ingress, allowed to set `X-Forwarded-For`; unset = trust none (the socket address is the client IP). Per-IP rate limits depend on it |
+| `AUTH_IP_LIMITS` | `off` disables per-IP auth rate limits — test suites only, logs a warning. Per-email limits always apply |
 | `MAIL_FROM`      | Sender, e.g. `MemoLang <no-reply@mail.example.com>`; required with `SMTP_HOST` |
 
 ## Deployment
@@ -101,7 +105,7 @@ Two-step POST: `?step=preview` parses the upload and re-renders the form with a 
 ## Known gaps (as-is, not a todo list)
 
 - No CSRF tokens — `SameSite=Lax` only
-- No rate limiting on login, register or code entry yet (ISS-019 phase 5); no MFA yet (phase 6)
+- No MFA yet (ISS-019 phase 6)
 - Expired `user_sessions` rows are never swept
 - OAuth not implemented — `users` is decoupled from how an account authenticated, so it stays additive
 - `importCache` is process-local: a CSV preview and its execute must hit the same replica

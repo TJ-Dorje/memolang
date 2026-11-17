@@ -86,6 +86,8 @@ func startInProcess(fakeLLM *httptest.Server) (cleanup func()) {
 		panic(err)
 	}
 	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", ln.Addr().(*net.TCPAddr).Port)
+	// Every case connects from localhost; per-email limits still apply.
+	os.Setenv("AUTH_IP_LIMITS", "off")
 	configuration.Mail = mail.NewMemory()
 	go http.Serve(ln, app.NewRouter(database, nil, configuration.Mail))
 
@@ -185,6 +187,8 @@ func TestE2E(t *testing.T) {
 		t.Run("ForgotUnknownEmailSameReply", cases.ForgotUnknownEmailSameReply)
 		t.Run("ChangeEmail", cases.ChangeEmail)
 		t.Run("CancelEmailChange", cases.CancelEmailChange)
+		t.Run("LoginLockoutAndResetStillWorks", cases.LoginLockoutAndResetStillWorks)
+		t.Run("ResendCodeIsCapped", cases.ResendCodeIsCapped)
 		t.Run("Logout", cases.Logout)
 		t.Run("LoginWrongPassword", cases.LoginWrongPassword)
 		t.Run("LoginEmailCaseInsensitive", cases.LoginEmailCaseInsensitive)

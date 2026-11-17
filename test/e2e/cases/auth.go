@@ -394,3 +394,59 @@ func CancelEmailChange(t *testing.T) {
 		t.Error("the change is still pending after Cancel")
 	}
 }
+
+// Five wrong passwords lock the address from this place for 15 minutes —
+// even the right password is refused — but a password reset still gets
+// the owner in.
+func LoginLockoutAndResetStillWorks(t *testing.T) {
+	email := uniqueEmail("lockout")
+	owner := helpers.NewAnonymousPage(t)
+	registerThrough(t, owner, email, "supersecret")
+
+	page := helpers.NewAnonymousPage(t)
+	for range 5 {
+		loginThrough(t, page, email, "wrong-guess")
+	}
+	loginThrough(t, page, email, "supersecret")
+	if got := components.GetFormError(t, page); !strings.Contains(got, "Too many attempts") {
+		t.Fatalf("sixth login: error %q, want the lockout message", got)
+	}
+
+	requestReset(t, page, email)
+	fill(t, page, "input[name=code]", helpers.FreshCode(t, email, models.CodeReset))
+	fill(t, page, "input[name=password]", "brand-new-pw")
+	fill(t, page, "input[name=password_confirm]", "brand-new-pw")
+	click(t, page, "form[action='/reset'] button[type=submit]")
+	components.WaitForURL(t, page, configuration.BaseURL+"/")
+}
+
+// Each address gets at most 5 code mails an hour; the sixth request says so
+// instead of sending.
+func ResendCodeIsCapped(t *testing.T) {
+	page := helpers.NewAnonymousPage(t)
+	email := uniqueEmail("resend")
+	submitRegistration(t, page, email, "supersecret") // mail 1
+
+	for range 4 { // mails 2–5
+		click(t, page, "form[action='/verify/resend'] button[type=submit]")
+		components.WaitForURL(t, page, "**/verify?email=**")
+	}
+	click(t, page, "form[action='/verify/resend'] button[type=submit]")
+	components.WaitForURL(t, page, "**/verify?email=**")
+
+	if body := components.GetBody(t, page); !strings.Contains(body, "Too many codes") {
+		t.Errorf("sixth code request: page %q, want the limit message", body)
+	}
+	if configuration.Mail == nil {
+		return
+	}
+	sent := 0
+	for _, m := range configuration.Mail.Sent() {
+		if m.To == email {
+			sent++
+		}
+	}
+	if sent != 5 {
+		t.Errorf("mails to %s = %d, want 5", email, sent)
+	}
+}

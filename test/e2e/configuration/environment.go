@@ -1,8 +1,8 @@
 package configuration
 
 import (
-	"memolang/internal/mail"
 	"database/sql"
+	"memolang/internal/mail"
 	"os"
 
 	playwright "github.com/playwright-community/playwright-go"
@@ -13,8 +13,8 @@ var (
 	// FakeLLMURL is the base URL of the fake OpenAI-compatible server
 	// TestMain starts, for cases that need an AI provider.
 	FakeLLMURL string
-	Browser playwright.Browser
-	DB      *sql.DB
+	Browser    playwright.Browser
+	DB         *sql.DB
 	// Mail is the app's outbox in-process; nil against the integration
 	// containers, where mail goes to their logs. Cases that read mail
 	// skip when it is nil.

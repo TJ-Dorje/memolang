@@ -3,6 +3,8 @@ package app
 import (
 	"database/sql"
 	"html/template"
+	"log"
+	"os"
 	"strings"
 
 	"memolang/internal/assistant"
@@ -20,6 +22,12 @@ import (
 // the log.
 func NewRouter(database *sql.DB, svc *assistant.Service, mailer mail.Mailer) *gin.Engine {
 	r := gin.Default()
+	// gin trusts X-Forwarded-For from anyone by default, which would let any
+	// client pick its own IP and dodge per-IP rate limits. Only the proxies
+	// named in TRUSTED_PROXIES (the ingress) may say who the client is.
+	if err := r.SetTrustedProxies(trustedProxies()); err != nil {
+		log.Fatalf("TRUSTED_PROXIES: %v", err)
+	}
 	r.SetFuncMap(template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
@@ -117,4 +125,17 @@ func NewRouter(database *sql.DB, svc *assistant.Service, mailer mail.Mailer) *gi
 	}
 
 	return r
+}
+
+// trustedProxies parses TRUSTED_PROXIES, a comma-separated list of IPs or
+// CIDRs such as "10.42.0.0/16". Unset trusts no proxy: the client IP is the
+// connection's own address.
+func trustedProxies() []string {
+	var out []string
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

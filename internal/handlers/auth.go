@@ -69,6 +69,10 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	if !h.takeMailSlot(c, email) {
+		renderErr(tooManyMails)
+		return
+	}
 	if err := h.registerAddress(c, email, string(hash)); err != nil {
 		log.Printf("Register: %v", err)
 		renderErr("Failed to register. Please try again.")
@@ -120,6 +124,19 @@ func validEmail(email string) bool {
 	return strings.Contains(domain, ".")
 }
 
+// loginUnverified sends a fresh code (if the mail limit allows) and shows
+// the code page: the right password for an unconfirmed address.
+func (h *Handler) loginUnverified(c *gin.Context, user *models.User) {
+	if !h.takeMailSlot(c, user.Email) {
+		h.redirectWithFlash(c, verifyURL(user.Email), "Confirm your email address first. "+tooManyMails)
+		return
+	}
+	if err := h.sendVerifyCode(c, user); err != nil {
+		log.Printf("Login: send verify code: %v", err)
+	}
+	h.redirectWithFlash(c, verifyURL(user.Email), "Confirm your email address first: we sent you a new code.")
+}
+
 func (h *Handler) LoginForm(c *gin.Context) {
 	h.render(c, http.StatusOK, "login.html", PageData{
 		Title: "Log In",
@@ -143,23 +160,32 @@ func (h *Handler) Login(c *gin.Context) {
 	// One message for every failure: never leak whether the account exists.
 	const badCreds = "Invalid email or password."
 
+	// Checked before the password, so a locked-out guesser learns nothing
+	// and costs no bcrypt. Unknown addresses count too, keyed the same.
+	counters := loginCounters(c, models.NormalizeEmail(email))
+	if !h.allowed(counters...) {
+		renderErr(tooManyLogins)
+		return
+	}
+
 	user, err := models.GetUserByEmail(h.DB, email)
 	if err != nil {
 		renderErr(badCreds)
 		return
 	}
 	if !passwordMatches(user, password) {
+		h.record(counters...)
 		renderErr(badCreds)
 		return
 	}
+	// The right password from here wipes this place's failures; the
+	// per-email and per-IP counts age out on their own.
+	models.ClearAttempts(h.DB, counters[0].kind, counters[0].key)
 
 	// Only after the right password do we say the address needs
 	// confirming, so this can't be used to probe which emails exist.
 	if !user.Verified() {
-		if err := h.sendVerifyCode(c, user); err != nil {
-			log.Printf("Login: send verify code: %v", err)
-		}
-		h.redirectWithFlash(c, verifyURL(user.Email), "Confirm your email address first: we sent you a new code.")
+		h.loginUnverified(c, user)
 		return
 	}
 

@@ -36,6 +36,11 @@ func (h *Handler) RequestEmailChange(c *gin.Context) {
 		return
 	}
 
+	if !h.takeMailSlot(c, newEmail) {
+		fail(tooManyMails)
+		return
+	}
+
 	code, err := models.IssueCode(h.DB, user.ID, models.CodeChangeEmail, newEmail)
 	if err != nil {
 		log.Printf("RequestEmailChange: IssueCode: %v", err)
