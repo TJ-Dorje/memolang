@@ -282,3 +282,115 @@ func VerificationCodeIsMailed(t *testing.T) {
 	enterCode(t, page, code)
 	components.WaitForURL(t, page, configuration.BaseURL+"/")
 }
+
+// requestReset goes from the login page's link to the reset form.
+func requestReset(t *testing.T, page playwright.Page, email string) {
+	t.Helper()
+	components.NavigateTo(t, page, "/login")
+	click(t, page, "a[href='/forgot']")
+	components.WaitForURL(t, page, "**/forgot")
+	fill(t, page, "input[name=email]", email)
+	click(t, page, "form[action='/forgot'] button[type=submit]")
+	components.WaitForURL(t, page, "**/reset?email=**")
+}
+
+func ForgotPasswordResets(t *testing.T) {
+	email := uniqueEmail("forgot")
+	other := helpers.NewAnonymousPage(t)
+	registerThrough(t, other, email, "old-password")
+	components.WaitForURL(t, other, configuration.BaseURL+"/")
+
+	page := helpers.NewAnonymousPage(t)
+	requestReset(t, page, email)
+	fill(t, page, "input[name=code]", helpers.FreshCode(t, email, models.CodeReset))
+	fill(t, page, "input[name=password]", "new-password")
+	fill(t, page, "input[name=password_confirm]", "new-password")
+	click(t, page, "form[action='/reset'] button[type=submit]")
+	components.WaitForURL(t, page, configuration.BaseURL+"/")
+
+	// The session that existed before the reset is gone…
+	components.NavigateTo(t, other, "/")
+	components.WaitForURL(t, other, "**/login**")
+	// …the old password no longer works, the new one does.
+	loginThrough(t, other, email, "old-password")
+	if got := components.GetFormError(t, other); got != "Invalid email or password." {
+		t.Errorf("old password after reset: error %q", got)
+	}
+	loginThrough(t, other, email, "new-password")
+	components.WaitForURL(t, other, configuration.BaseURL+"/")
+
+	if configuration.Mail == nil {
+		return
+	}
+	if last, _ := configuration.Mail.Last(email); !strings.Contains(last.Subject, "password was changed") {
+		t.Errorf("last mail = %q, want the password-changed notice", last.Subject)
+	}
+}
+
+func ForgotUnknownEmailSameReply(t *testing.T) {
+	page := helpers.NewAnonymousPage(t)
+	email := uniqueEmail("nobody")
+	requestReset(t, page, email)
+
+	if body := components.GetBody(t, page); !strings.Contains(body, "If that account exists") {
+		t.Errorf("expected the neutral reply, got %q", body)
+	}
+	if configuration.Mail == nil {
+		return
+	}
+	if _, ok := configuration.Mail.Last(email); ok {
+		t.Error("a mail was sent to an address with no account")
+	}
+}
+
+// startEmailChange registers a user and asks to move them to newEmail.
+func startEmailChange(t *testing.T, page playwright.Page, email, newEmail string) {
+	t.Helper()
+	registerThrough(t, page, email, "supersecret")
+	components.WaitForURL(t, page, configuration.BaseURL+"/")
+
+	components.NavigateTo(t, page, "/profile/security")
+	fill(t, page, "#new_email", newEmail)
+	fill(t, page, "#email_password", "supersecret")
+	click(t, page, "form.email-form button[type=submit]")
+	components.WaitForURL(t, page, "**/profile/security")
+	if body := components.GetBody(t, page); !strings.Contains(body, "Waiting to confirm") {
+		t.Fatalf("expected the pending change, got %q", body)
+	}
+}
+
+func ChangeEmail(t *testing.T) {
+	page := helpers.NewAnonymousPage(t)
+	email, newEmail := uniqueEmail("change-old"), uniqueEmail("change-new")
+	startEmailChange(t, page, email, newEmail)
+
+	fill(t, page, "#email_code", helpers.FreshCode(t, email, models.CodeChangeEmail))
+	click(t, page, "form.email-confirm-form button[type=submit]")
+	components.WaitForURL(t, page, "**/profile/security")
+	if body := components.GetBody(t, page); !strings.Contains(body, "Your email is now "+newEmail) {
+		t.Errorf("expected the confirmation, got %q", body)
+	}
+
+	fresh := helpers.NewAnonymousPage(t)
+	loginThrough(t, fresh, newEmail, "supersecret")
+	components.WaitForURL(t, fresh, configuration.BaseURL+"/")
+
+	if configuration.Mail == nil {
+		return
+	}
+	if last, _ := configuration.Mail.Last(email); !strings.Contains(last.Subject, "email was changed") {
+		t.Errorf("old address's last mail = %q, want the changed notice", last.Subject)
+	}
+}
+
+func CancelEmailChange(t *testing.T) {
+	page := helpers.NewAnonymousPage(t)
+	email := uniqueEmail("cancel-old")
+	startEmailChange(t, page, email, uniqueEmail("cancel-new"))
+
+	click(t, page, "form.email-cancel-form button[type=submit]")
+	components.WaitForURL(t, page, "**/profile/security")
+	if body := components.GetBody(t, page); strings.Contains(body, "Waiting to confirm") {
+		t.Error("the change is still pending after Cancel")
+	}
+}

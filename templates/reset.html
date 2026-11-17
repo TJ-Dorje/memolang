@@ -1,0 +1,42 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Choose a new password</h1>
+</div>
+
+<p>If <strong>{{.Data.Email}}</strong> has an account, we sent it a 6-digit
+   code. It works for 15 minutes.</p>
+
+{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}
+
+<form method="POST" action="/reset">
+    <input type="hidden" name="email" value="{{.Data.Email}}">
+    <div>
+        <label for="code">Code</label>
+        <input type="text" id="code" name="code" required autofocus
+            inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+            autocomplete="one-time-code">
+    </div>
+    <div>
+        <label for="password">New password</label>
+        <input type="password" id="password" name="password" required minlength="8"
+            autocomplete="new-password">
+        <small class="hint">At least 8 characters. Every other session will be signed out.</small>
+    </div>
+    <div>
+        <label for="password_confirm">Confirm new password</label>
+        <input type="password" id="password_confirm" name="password_confirm" required minlength="8"
+            autocomplete="new-password">
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary">Set Password</button>
+    </div>
+</form>
+
+<p class="hint">Didn't get it? Check your spam folder, or:</p>
+<form method="POST" action="/forgot">
+    <input type="hidden" name="email" value="{{.Data.Email}}">
+    <button type="submit" class="btn">Send a new code</button>
+</form>
+
+<p class="hint">Wrong address? <a href="/forgot">Start over</a>.</p>
+{{template "_footer" .}}

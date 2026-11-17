@@ -100,6 +100,12 @@ type SecurityData struct {
 	Sessions      int
 	PasswordError string
 	DeleteError   string
+	// PendingEmail is the address an email change waits to confirm; "" when
+	// none is in flight. renderSecurity fills it.
+	PendingEmail string
+	// NewEmail refills the change-email form after an error.
+	NewEmail   string
+	EmailError string
 }
 
 // ProvidersData is the data payload for the providers list.

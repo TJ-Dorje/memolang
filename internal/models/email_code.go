@@ -156,3 +156,57 @@ func newCode() (string, error) {
 	}
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
+
+// ResetPassword sets a new password if code is the user's live reset code,
+// and ends every session: whoever had the old password must not stay logged
+// in. Typing a code sent to the address also proves owning it, so an
+// unverified account comes out verified.
+func ResetPassword(db *sql.DB, userID int64, code, passwordHash string) error {
+	return withCode(db, userID, CodeReset, code, func(tx *sql.Tx, _ string) error {
+		if _, err := tx.Exec(
+			`UPDATE users SET password_hash = $1, email_verified_at = COALESCE(email_verified_at, now())
+			 WHERE id = $2`, passwordHash, userID,
+		); err != nil {
+			return err
+		}
+		_, err := tx.Exec("DELETE FROM user_sessions WHERE user_id = $1", userID)
+		return err
+	})
+}
+
+// ChangeEmail switches the user to the address their live change_email code
+// was sent to, and returns it. ErrEmailTaken if another account took that
+// address meanwhile.
+func ChangeEmail(db *sql.DB, userID int64, code string) (string, error) {
+	var changedTo string
+	err := withCode(db, userID, CodeChangeEmail, code, func(tx *sql.Tx, newEmail string) error {
+		_, err := tx.Exec("UPDATE users SET email = $1, email_verified_at = now() WHERE id = $2", newEmail, userID)
+		if isUniqueViolation(err) {
+			return ErrEmailTaken
+		}
+		changedTo = newEmail
+		return err
+	})
+	return changedTo, err
+}
+
+// PendingEmailChange returns the address an unexpired email change is
+// waiting to confirm, or "" if there is none.
+func PendingEmailChange(db *sql.DB, userID int64) (string, error) {
+	var newEmail string
+	err := db.QueryRow(
+		`SELECT new_email FROM email_codes
+		 WHERE user_id = $1 AND purpose = $2 AND expires_at > now()`,
+		userID, CodeChangeEmail,
+	).Scan(&newEmail)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return newEmail, err
+}
+
+// CancelCode drops the user's live code for purpose, if any.
+func CancelCode(db *sql.DB, userID int64, purpose CodePurpose) error {
+	_, err := db.Exec("DELETE FROM email_codes WHERE user_id = $1 AND purpose = $2", userID, purpose)
+	return err
+}

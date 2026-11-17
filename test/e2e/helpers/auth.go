@@ -43,7 +43,15 @@ func FreshCode(t *testing.T, email string, purpose models.CodePurpose) string {
 	if err != nil || u == nil {
 		t.Fatalf("FreshCode: no user %q: %v", email, err)
 	}
-	code, err := models.IssueCode(configuration.DB, u.ID, purpose, "")
+	// An email change's code carries the address it confirms; keep it.
+	newEmail := ""
+	if purpose == models.CodeChangeEmail {
+		newEmail, err = models.PendingEmailChange(configuration.DB, u.ID)
+		if err != nil || newEmail == "" {
+			t.Fatalf("FreshCode: no pending email change for %q: %v", email, err)
+		}
+	}
+	code, err := models.IssueCode(configuration.DB, u.ID, purpose, newEmail)
 	if err != nil {
 		t.Fatalf("FreshCode: %v", err)
 	}

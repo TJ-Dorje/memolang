@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	"memolang/internal/models"
 )
@@ -142,5 +143,76 @@ func TestReplaceUnverifiedPassword(t *testing.T) {
 	}
 	if err := models.ReplaceUnverifiedPassword(database, u.ID, "hijack"); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("verified account = %v, want sql.ErrNoRows", err)
+	}
+}
+
+func TestResetPasswordEndsSessionsAndVerifies(t *testing.T) {
+	database := testDB(t)
+	u := newUnverifiedUser(t, database)
+	if _, err := models.CreateUserSession(database, u.ID, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _ := models.IssueCode(database, u.ID, models.CodeReset, "")
+	if err := models.ResetPassword(database, u.ID, code, "newhash"); err != nil {
+		t.Fatalf("ResetPassword: %v", err)
+	}
+
+	got, _ := models.GetUserByID(database, u.ID)
+	if got.PasswordHash != "newhash" || !got.Verified() {
+		t.Errorf("after reset: hash %q, verified %v", got.PasswordHash, got.Verified())
+	}
+	if n, _ := models.CountUserSessions(database, u.ID); n != 0 {
+		t.Errorf("sessions after reset = %d, want 0", n)
+	}
+}
+
+// A reset code can't verify an email, nor the other way round: each code
+// only does what it was sent for.
+func TestCodesAreBoundToPurpose(t *testing.T) {
+	database := testDB(t)
+	u := newUnverifiedUser(t, database)
+	code, _ := models.IssueCode(database, u.ID, models.CodeReset, "")
+
+	if err := models.VerifyEmail(database, u.ID, code); !errors.Is(err, models.ErrCodeGone) {
+		t.Fatalf("reset code used to verify = %v, want ErrCodeGone", err)
+	}
+}
+
+func TestChangeEmail(t *testing.T) {
+	database := testDB(t)
+	u := newUnverifiedUser(t, database)
+
+	code, err := models.IssueCode(database, u.ID, models.CodeChangeEmail, "New@Example.com")
+	if err != nil {
+		t.Fatalf("IssueCode: %v", err)
+	}
+	if pending, _ := models.PendingEmailChange(database, u.ID); pending != "new@example.com" {
+		t.Fatalf("pending = %q, want the normalized new address", pending)
+	}
+
+	got, err := models.ChangeEmail(database, u.ID, code)
+	if err != nil || got != "new@example.com" {
+		t.Fatalf("ChangeEmail = %q, %v", got, err)
+	}
+	user, _ := models.GetUserByID(database, u.ID)
+	if user.Email != "new@example.com" || !user.Verified() {
+		t.Errorf("after change: %q verified=%v", user.Email, user.Verified())
+	}
+	if pending, _ := models.PendingEmailChange(database, u.ID); pending != "" {
+		t.Errorf("pending after confirm = %q, want none", pending)
+	}
+}
+
+func TestChangeEmailToTakenAddress(t *testing.T) {
+	database := testDB(t)
+	u := newUnverifiedUser(t, database)
+	if _, err := models.CreateUser(database, "taken@example.com", "x"); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _ := models.IssueCode(database, u.ID, models.CodeChangeEmail, "taken@example.com")
+	if _, err := models.ChangeEmail(database, u.ID, code); !errors.Is(err, models.ErrEmailTaken) {
+		t.Fatalf("ChangeEmail to a taken address = %v, want ErrEmailTaken", err)
 	}
 }

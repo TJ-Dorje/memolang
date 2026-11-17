@@ -60,6 +60,12 @@ func (h *Handler) renderSecurity(c *gin.Context, data SecurityData) {
 	}
 	data.Sessions = n
 
+	pending, err := models.PendingEmailChange(h.DB, currentUserID(c))
+	if err != nil {
+		log.Printf("SecurityPage: PendingEmailChange: %v", err)
+	}
+	data.PendingEmail = pending
+
 	h.render(c, http.StatusOK, "security.html", PageData{
 		Title: "Security",
 		Flash: h.getFlash(c),
@@ -94,6 +100,8 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		h.renderSecurity(c, SecurityData{PasswordError: "Failed to change password. Please try again."})
 		return
 	}
+
+	h.send(c, passwordChangedMail(user.Email))
 
 	token, _ := c.Cookie(middleware.SessionCookie)
 	if _, err := models.DeleteOtherUserSessions(h.DB, user.ID, token); err != nil {

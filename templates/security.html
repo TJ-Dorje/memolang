@@ -31,6 +31,45 @@
             </div>
         </form>
 
+        <h2>Email address</h2>
+        <p>You log in with <strong>{{.User.Email}}</strong>.</p>
+        {{if .Data.EmailError}}<div class="form-error">{{.Data.EmailError}}</div>{{end}}
+        {{if .Data.PendingEmail}}
+        <p class="pending-email">Waiting to confirm <strong>{{.Data.PendingEmail}}</strong>.
+           Enter the code we sent there. Until then you keep logging in with your current address.</p>
+        <form method="POST" action="/profile/security/email/confirm" class="email-confirm-form">
+            <div>
+                <label for="email_code">Code</label>
+                <input type="text" id="email_code" name="code" required
+                       inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                       autocomplete="one-time-code">
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">Confirm New Address</button>
+            </div>
+        </form>
+        <form method="POST" action="/profile/security/email/cancel" class="email-cancel-form">
+            <button type="submit" class="btn">Cancel Change</button>
+        </form>
+        {{else}}
+        <form method="POST" action="/profile/security/email" class="email-form">
+            <div>
+                <label for="new_email">New email</label>
+                <input type="email" id="new_email" name="new_email" required
+                       autocomplete="email" value="{{.Data.NewEmail}}">
+                <small class="hint">We'll send a code there. Your current address gets a notice.</small>
+            </div>
+            <div>
+                <label for="email_password">Current password</label>
+                <input type="password" id="email_password" name="password"
+                       autocomplete="current-password" required>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">Change Email</button>
+            </div>
+        </form>
+        {{end}}
+
         <h2>Sessions</h2>
         <p class="session-count">
             You are signed in on <strong>{{.Data.Sessions}}</strong>
