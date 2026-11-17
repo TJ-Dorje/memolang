@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"memolang/internal/mail"
 	"database/sql"
 	"os"
 
@@ -14,6 +15,10 @@ var (
 	FakeLLMURL string
 	Browser playwright.Browser
 	DB      *sql.DB
+	// Mail is the app's outbox in-process; nil against the integration
+	// containers, where mail goes to their logs. Cases that read mail
+	// skip when it is nil.
+	Mail *mail.Memory
 
 	// Context is a browser context already carrying the shared test user's
 	// session cookie, so every case runs logged in without its own login

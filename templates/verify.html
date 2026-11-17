@@ -1,0 +1,31 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Confirm your email</h1>
+</div>
+
+<p>We sent a 6-digit code to <strong>{{.Data.Email}}</strong>.
+   Enter it below to finish. It works for 15 minutes.</p>
+
+{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}
+
+<form method="POST" action="/verify">
+    <input type="hidden" name="email" value="{{.Data.Email}}">
+    <div>
+        <label for="code">Code</label>
+        <input type="text" id="code" name="code" required autofocus
+            inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+            autocomplete="one-time-code">
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary">Confirm</button>
+    </div>
+</form>
+
+<p class="hint">Didn't get it? Check your spam folder, or:</p>
+<form method="POST" action="/verify/resend">
+    <input type="hidden" name="email" value="{{.Data.Email}}">
+    <button type="submit" class="btn">Send a new code</button>
+</form>
+
+<p class="hint">Wrong address? <a href="/register">Start over</a>.</p>
+{{template "_footer" .}}

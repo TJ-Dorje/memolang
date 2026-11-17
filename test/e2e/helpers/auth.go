@@ -15,13 +15,39 @@ import (
 // e2eSessionTTL only has to outlive one test run.
 const e2eSessionTTL = time.Hour
 
-// RegisterUser creates an account directly in the DB and returns it.
+// RegisterUser creates a verified account directly in the DB and returns it.
 func RegisterUser(email, password string) (models.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	if err != nil {
 		return models.User{}, err
 	}
-	return models.CreateUser(configuration.DB, email, string(hash))
+	u, err := models.CreateUser(configuration.DB, email, string(hash))
+	if err != nil {
+		return models.User{}, err
+	}
+	code, err := models.IssueCode(configuration.DB, u.ID, models.CodeVerify, "")
+	if err != nil {
+		return models.User{}, err
+	}
+	return u, models.VerifyEmail(configuration.DB, u.ID, code)
+}
+
+// FreshCode stands in for reading the inbox: it replaces the user's live
+// code for purpose with a new one and returns it. Codes are stored hashed,
+// so the one actually mailed can't be read back — but the flow under test
+// (type the code, get in) is the same. Works against both the in-process
+// app and the integration containers, which share configuration.DB.
+func FreshCode(t *testing.T, email string, purpose models.CodePurpose) string {
+	t.Helper()
+	u, err := models.GetUserByEmail(configuration.DB, email)
+	if err != nil || u == nil {
+		t.Fatalf("FreshCode: no user %q: %v", email, err)
+	}
+	code, err := models.IssueCode(configuration.DB, u.ID, purpose, "")
+	if err != nil {
+		t.Fatalf("FreshCode: %v", err)
+	}
+	return code
 }
 
 // NewLoggedInContext registers the shared test user and returns a browser

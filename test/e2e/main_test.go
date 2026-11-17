@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"memolang/internal/app"
+	"memolang/internal/mail"
 	"memolang/internal/testdb"
 	"memolang/internal/testdb/pgtest"
 	"memolang/test/e2e/cases"
@@ -85,7 +86,8 @@ func startInProcess(fakeLLM *httptest.Server) (cleanup func()) {
 		panic(err)
 	}
 	configuration.BaseURL = fmt.Sprintf("http://localhost:%d", ln.Addr().(*net.TCPAddr).Port)
-	go http.Serve(ln, app.NewRouter(database, nil, nil))
+	configuration.Mail = mail.NewMemory()
+	go http.Serve(ln, app.NewRouter(database, nil, configuration.Mail))
 
 	return func() {
 		database.Close()
@@ -174,6 +176,11 @@ func TestE2E(t *testing.T) {
 	})
 	t.Run("Auth", func(t *testing.T) {
 		t.Run("Register", cases.Register)
+		t.Run("RegisterWrongCode", cases.RegisterWrongCode)
+		t.Run("LoginUnverifiedAsksForCode", cases.LoginUnverifiedAsksForCode)
+		t.Run("RegisterExistingAccountSameReply", cases.RegisterExistingAccountSameReply)
+		t.Run("RegisterTakesOverUnverifiedAccount", cases.RegisterTakesOverUnverifiedAccount)
+		t.Run("VerificationCodeIsMailed", cases.VerificationCodeIsMailed)
 		t.Run("Logout", cases.Logout)
 		t.Run("LoginWrongPassword", cases.LoginWrongPassword)
 		t.Run("LoginEmailCaseInsensitive", cases.LoginEmailCaseInsensitive)

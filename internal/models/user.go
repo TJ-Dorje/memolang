@@ -104,6 +104,20 @@ func UpdateDisplayName(db *sql.DB, userID int64, name string) error {
 	return requireRowAffected(res)
 }
 
+// ReplaceUnverifiedPassword sets a new password on an account nobody has
+// proved owning yet: registering again with the same address takes it over,
+// so a typo or a squatter can't block the real owner. A verified account is
+// never touched (sql.ErrNoRows).
+func ReplaceUnverifiedPassword(db *sql.DB, userID int64, passwordHash string) error {
+	res, err := db.Exec(
+		"UPDATE users SET password_hash = $1 WHERE id = $2 AND email_verified_at IS NULL", passwordHash, userID,
+	)
+	if err != nil {
+		return err
+	}
+	return requireRowAffected(res)
+}
+
 func UpdatePassword(db *sql.DB, userID int64, passwordHash string) error {
 	res, err := db.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", passwordHash, userID)
 	if err != nil {

@@ -43,6 +43,9 @@ func NewRouter(database *sql.DB, svc *assistant.Service, mailer mail.Mailer) *gi
 	r.POST("/login", h.Login)
 	r.GET("/register", h.RegisterForm)
 	r.POST("/register", h.Register)
+	r.GET("/verify", h.VerifyForm)
+	r.POST("/verify", h.Verify)
+	r.POST("/verify/resend", h.ResendVerify)
 	r.POST("/logout", h.Logout)
 	// Public: the login and register pages carry the theme switcher too.
 	r.POST("/theme", h.SetTheme)

@@ -3,7 +3,9 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	netmail "net/mail"
 	"os"
 	"strings"
 	"time"
@@ -28,8 +30,20 @@ func (h *Handler) RegisterForm(c *gin.Context) {
 	})
 }
 
+// Register always ends on the same "we sent you a code" page, whatever the
+// address's state, so the form can't be used to find out who has an
+// account:
+//
+//   - new address: create the account (unverified) and send a code;
+//   - unverified account: nobody has proved owning it, so take it over with
+//     the new password and send a fresh code — a typo or squatter can't
+//     block the real owner;
+//   - verified account: send the owner a "someone tried to register" notice
+//     instead of a code.
+//
+// The password is hashed on every path, so all three take about as long.
 func (h *Handler) Register(c *gin.Context) {
-	email := strings.TrimSpace(c.PostForm("email"))
+	email := models.NormalizeEmail(c.PostForm("email"))
 	password := c.PostForm("password")
 	confirm := c.PostForm("password_confirm")
 
@@ -40,7 +54,7 @@ func (h *Handler) Register(c *gin.Context) {
 		})
 	}
 
-	if email == "" || !strings.Contains(email, "@") {
+	if !validEmail(email) {
 		renderErr("Please enter a valid email address.")
 		return
 	}
@@ -55,22 +69,55 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := models.CreateUser(h.DB, email, string(hash))
-	if err != nil {
-		if errors.Is(err, models.ErrEmailTaken) {
-			renderErr("An account with that email already exists.")
-			return
-		}
+	if err := h.registerAddress(c, email, string(hash)); err != nil {
+		log.Printf("Register: %v", err)
 		renderErr("Failed to register. Please try again.")
 		return
 	}
+	c.Redirect(http.StatusSeeOther, verifyURL(email))
+}
 
-	if err := h.startSessionCookie(c, user.ID); err != nil {
-		renderErr("Failed to start a session. Please try logging in.")
-		return
+// registerAddress applies the three cases described on Register.
+func (h *Handler) registerAddress(c *gin.Context, email, hash string) error {
+	existing, err := models.GetUserByEmail(h.DB, email)
+	if err != nil {
+		return err
 	}
+	if existing == nil {
+		return h.createAndSendCode(c, email, hash)
+	}
+	if existing.Verified() {
+		h.send(c, accountExistsMail(email))
+		return nil
+	}
+	if err := models.ReplaceUnverifiedPassword(h.DB, existing.ID, hash); err != nil {
+		return err
+	}
+	return h.sendVerifyCode(c, existing)
+}
 
-	c.Redirect(http.StatusSeeOther, "/")
+func (h *Handler) createAndSendCode(c *gin.Context, email, hash string) error {
+	user, err := models.CreateUser(h.DB, email, hash)
+	if errors.Is(err, models.ErrEmailTaken) {
+		// Lost a race with a concurrent registration of the same address;
+		// that one sends the code.
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return h.sendVerifyCode(c, &user)
+}
+
+// validEmail is a sanity check, not proof — the emailed code is the proof.
+// It rejects what can't be an address (no @, a display name, spaces).
+func validEmail(email string) bool {
+	addr, err := netmail.ParseAddress(email)
+	if err != nil || addr.Address != email {
+		return false
+	}
+	_, domain, _ := strings.Cut(email, "@")
+	return strings.Contains(domain, ".")
 }
 
 func (h *Handler) LoginForm(c *gin.Context) {
@@ -103,6 +150,16 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 	if !passwordMatches(user, password) {
 		renderErr(badCreds)
+		return
+	}
+
+	// Only after the right password do we say the address needs
+	// confirming, so this can't be used to probe which emails exist.
+	if !user.Verified() {
+		if err := h.sendVerifyCode(c, user); err != nil {
+			log.Printf("Login: send verify code: %v", err)
+		}
+		h.redirectWithFlash(c, verifyURL(user.Email), "Confirm your email address first: we sent you a new code.")
 		return
 	}
 
