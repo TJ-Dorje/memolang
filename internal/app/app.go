@@ -59,6 +59,8 @@ func NewRouter(database *sql.DB, svc *assistant.Service, mailer mail.Mailer) *gi
 	r.GET("/reset", h.ResetForm)
 	r.POST("/reset", h.Reset)
 	r.POST("/logout", h.Logout)
+	r.GET("/login/mfa", h.LoginMFAForm)
+	r.POST("/login/mfa", h.LoginMFA)
 	// Public: the login and register pages carry the theme switcher too.
 	r.POST("/theme", h.SetTheme)
 
@@ -109,6 +111,12 @@ func NewRouter(database *sql.DB, svc *assistant.Service, mailer mail.Mailer) *gi
 		protected.POST("/profile/security/email", h.RequestEmailChange)
 		protected.POST("/profile/security/email/confirm", h.ConfirmEmailChange)
 		protected.POST("/profile/security/email/cancel", h.CancelEmailChange)
+		protected.POST("/profile/security/mfa/setup", h.StartMFASetup)
+		protected.GET("/profile/security/mfa", h.MFASetupPage)
+		protected.POST("/profile/security/mfa", h.ConfirmMFASetup)
+		protected.POST("/profile/security/mfa/codes.txt", h.DownloadRecoveryCodes)
+		protected.POST("/profile/security/mfa/regenerate", h.RegenerateRecoveryCodes)
+		protected.POST("/profile/security/mfa/disable", h.DisableMFA)
 		protected.POST("/profile/security/sessions", h.SignOutOtherSessions)
 		protected.POST("/profile/security/delete", h.DeleteAccount)
 

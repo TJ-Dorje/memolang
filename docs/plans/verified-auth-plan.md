@@ -40,7 +40,8 @@ Tasks: `docs/implementations/verified-auth-tasks.md`.
 
 ### Two-factor (optional, Profile → Security)
 
-1. **Turn on:** QR code (server-rendered PNG, no JS) plus the secret as text → type one code to confirm → 10 recovery codes shown once, with **Download .txt** and an "I've saved them" checkbox before it switches on.
+1. **Turn on:** QR code (server-rendered PNG, no JS) plus the secret as text → type one code to confirm → MFA is on, and 10 recovery codes are shown once, with **Download .txt** and an "I've saved them" button.
+   - *Changed while building:* MFA switches on at the confirming code, not after an "I've saved them" checkbox. Gating on the checkbox would mean keeping the plain-text codes on the server until it is ticked; and someone who doesn't save them still has the authenticator and can generate new codes, so the gate added storage without adding safety.
 2. **Login with MFA:** password → "Enter the code from your authenticator app" (or "Use a recovery code instead") → logged in. Sessions last 30 days, so this comes up about monthly per device.
 3. **Security page:** recovery codes left, **Generate new codes**, **Turn off** (needs password + a current code).
 4. **Lost phone and codes:** the operator runs `memolang user reset-mfa <email>`. There is deliberately no email fallback — it would make MFA as weak as the inbox.
@@ -103,6 +104,8 @@ Password changed, email changed (to the old address), MFA turned on/off, recover
 6. TOTP MFA (migration 0003), recovery codes, `reset-mfa` command.
 
 Each phase lands with its tests and doc updates; e2e cases read codes from the test mailer.
+
+**Status (2026-11-18): all six phases built** on branch `feat/verified-auth`. Before opening registration publicly: a domain with SPF/DKIM/DMARC, an SMTP provider (`SMTP_*`), `TRUSTED_PROXIES` set to the ingress CIDR, and ISS-017.
 
 ## Not now
 

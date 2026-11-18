@@ -30,7 +30,7 @@ func CreateUserSession(db *sql.DB, userID int64, ttl time.Duration) (string, err
 // token is not an error: it returns nil, nil.
 func GetUserByToken(db *sql.DB, token string) (*User, error) {
 	u, err := scanUser(db.QueryRow(
-		`SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at, u.email_verified_at
+		`SELECT u.id, u.email, u.password_hash, u.display_name, u.created_at, u.email_verified_at, u.totp_enabled_at
 		 FROM user_sessions s
 		 JOIN users u ON u.id = s.user_id
 		 WHERE s.token_hash = $1 AND s.expires_at > now()`,

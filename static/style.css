@@ -1019,3 +1019,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--blue); }
 @keyframes gen-in { from { opacity: 0; transform: translateY(4px); } }
 .gen-result { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; margin-top: var(--sp-5); }
 .gen-done { color: var(--green); font-weight: 700; }
+
+/* Two-factor setup and recovery codes */
+.mfa-steps li { margin-bottom: 0.75rem; }
+.mfa-qr { margin: 0.75rem 0; }
+.mfa-qr img { background: #fff; padding: 8px; image-rendering: pixelated; }
+.mfa-secret, .recovery-codes code { font-family: var(--font-mono, monospace); letter-spacing: 0.05em; }
+.mfa-secret { display: inline-block; margin-top: 0.25rem; user-select: all; }
+.recovery-codes {
+    list-style: none; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.5rem;
+}
+.mfa-status { font-size: var(--fs-sm); color: var(--fg-dim); }

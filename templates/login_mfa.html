@@ -1,0 +1,23 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Two-factor login</h1>
+</div>
+
+<p>Enter the 6-digit code from your authenticator app.</p>
+
+{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}
+
+<form method="POST" action="/login/mfa">
+    <div>
+        <label for="code">Code</label>
+        <input type="text" id="code" name="code" required autofocus
+            autocomplete="one-time-code" autocapitalize="off" spellcheck="false"
+            maxlength="12">
+        <small class="hint">Lost your phone? Enter one of your recovery codes instead.</small>
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary">Log In</button>
+        <a href="/login" class="btn">Cancel</a>
+    </div>
+</form>
+{{template "_footer" .}}

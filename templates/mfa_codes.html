@@ -1,0 +1,21 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>{{if .Data.First}}Two-factor login is on{{else}}New recovery codes{{end}}</h1>
+</div>
+
+<p>Save these recovery codes somewhere safe — a password manager, or on
+   paper. If you lose your phone, each one logs you in <strong>once</strong>.
+   {{if not .Data.First}}Your old codes no longer work.{{end}}</p>
+<p class="form-error">This is the only time they are shown.</p>
+
+<ul class="recovery-codes">
+    {{range .Data.Codes}}<li><code>{{.}}</code></li>{{end}}
+</ul>
+
+<form method="POST" action="/profile/security/mfa/codes.txt" class="codes-download-form">
+    {{range .Data.Codes}}<input type="hidden" name="code" value="{{.}}">{{end}}
+    <button type="submit" class="btn">Download as .txt</button>
+</form>
+
+<p><a href="/profile/security" class="btn btn-primary">I've saved them</a></p>
+{{template "_footer" .}}

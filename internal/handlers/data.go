@@ -106,6 +106,12 @@ type SecurityData struct {
 	// NewEmail refills the change-email form after an error.
 	NewEmail   string
 	EmailError string
+
+	// MFASetupPending: setup was started but not confirmed. MFA itself
+	// being on is PageData.User.MFAEnabled. renderSecurity fills both.
+	MFASetupPending   bool
+	RecoveryCodesLeft int
+	MFAError          string
 }
 
 // ProvidersData is the data payload for the providers list.

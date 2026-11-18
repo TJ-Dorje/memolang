@@ -104,3 +104,35 @@ func emailChangedMail(to, newEmail string) mail.Message {
 			"person who runs this MemoLang to get it back.\n",
 	}
 }
+
+func mfaEnabledMail(to string) mail.Message {
+	return mail.Message{
+		To:      to,
+		Subject: "Two-factor login is on for your MemoLang account",
+		Body: "Two-factor login was just turned on: logging in now also needs a code\n" +
+			"from your authenticator app, or one of your recovery codes.\n\n" +
+			"If this wasn't you, someone else controls your account. Contact the\n" +
+			"person who runs this MemoLang to get it back.\n",
+	}
+}
+
+func mfaDisabledMail(to string) mail.Message {
+	return mail.Message{
+		To:      to,
+		Subject: "Two-factor login is off for your MemoLang account",
+		Body: "Two-factor login was just turned off: your password alone now logs in.\n\n" +
+			"If this wasn't you, choose \"Forgot password?\" on the login page now\n" +
+			"to set a new password, then turn two-factor login back on.\n",
+	}
+}
+
+func recoveryCodesRegeneratedMail(to string) mail.Message {
+	return mail.Message{
+		To:      to,
+		Subject: "New MemoLang recovery codes were made",
+		Body: "New recovery codes were just made for your MemoLang account; the old\n" +
+			"ones no longer work.\n\n" +
+			"If this wasn't you, choose \"Forgot password?\" on the login page now\n" +
+			"to set a new password.\n",
+	}
+}

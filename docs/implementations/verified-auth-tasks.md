@@ -2,6 +2,8 @@
 
 Breaks down `docs/plans/verified-auth-plan.md` (read it first for the *why*). Same style as `auth-sessions-tasks.md`: file, what, done-when. Continues numbering after T-079.
 
+**Status: T-080 – T-097 done (2026-11-18).** Phase 6 decision change: MFA turns on at the confirming code, no "saved them" checkbox gate (see the plan).
+
 ---
 
 ## Phase 1 — schema and hashed session tokens

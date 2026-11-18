@@ -19,7 +19,13 @@ type User struct {
 	// EmailVerifiedAt is when the user proved they own Email; nil until then.
 	// An unverified account can't log in.
 	EmailVerifiedAt *time.Time
+	// TOTPEnabledAt is when two-factor login was turned on; nil = off. The
+	// secret itself is never loaded into User (see TOTPSecret).
+	TOTPEnabledAt *time.Time
 }
+
+// MFAEnabled reports whether login needs an authenticator code.
+func (u User) MFAEnabled() bool { return u.TOTPEnabledAt != nil }
 
 // Verified reports whether the user has confirmed their email address.
 func (u User) Verified() bool { return u.EmailVerifiedAt != nil }
@@ -38,7 +44,7 @@ var ErrEmailTaken = errors.New("email already registered")
 
 // userColumns and scanUser keep every query that loads a User in step, so a
 // new column is added in one place instead of four.
-const userColumns = "id, email, password_hash, display_name, created_at, email_verified_at"
+const userColumns = "id, email, password_hash, display_name, created_at, email_verified_at, totp_enabled_at"
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -46,7 +52,7 @@ type rowScanner interface {
 
 func scanUser(row rowScanner) (User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.CreatedAt, &u.EmailVerifiedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.CreatedAt, &u.EmailVerifiedAt, &u.TOTPEnabledAt)
 	return u, err
 }
 

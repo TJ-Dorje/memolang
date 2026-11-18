@@ -1,0 +1,32 @@
+{{template "_header" .}}
+<div class="page-header">
+    <h1>Set up two-factor login</h1>
+</div>
+
+<ol class="mfa-steps">
+    <li>Open an authenticator app on your phone (Google Authenticator,
+        Microsoft Authenticator, 1Password, Aegis, …) and add an account.</li>
+    <li>Scan this code:
+        <div class="mfa-qr"><img src="{{.Data.QR}}" width="220" height="220"
+             alt="QR code for your authenticator app"></div>
+        Can't scan? Type this key instead:
+        <code class="mfa-secret">{{.Data.Secret}}</code>
+    </li>
+    <li>Enter the 6-digit code the app now shows:</li>
+</ol>
+
+{{if .Data.Error}}<div class="form-error">{{.Data.Error}}</div>{{end}}
+
+<form method="POST" action="/profile/security/mfa">
+    <div>
+        <label for="code">Code</label>
+        <input type="text" id="code" name="code" required autofocus
+            inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+            autocomplete="one-time-code">
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary">Turn On</button>
+        <a href="/profile/security" class="btn">Cancel</a>
+    </div>
+</form>
+{{template "_footer" .}}

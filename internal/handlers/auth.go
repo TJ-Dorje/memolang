@@ -178,10 +178,6 @@ func (h *Handler) Login(c *gin.Context) {
 		renderErr(badCreds)
 		return
 	}
-	// The right password from here wipes this place's failures; the
-	// per-email and per-IP counts age out on their own.
-	models.ClearAttempts(h.DB, counters[0].kind, counters[0].key)
-
 	// Only after the right password do we say the address needs
 	// confirming, so this can't be used to probe which emails exist.
 	if !user.Verified() {
@@ -189,12 +185,9 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	if err := h.startSessionCookie(c, user.ID); err != nil {
-		renderErr("Failed to start a session. Please try again.")
-		return
-	}
-
-	c.Redirect(http.StatusSeeOther, safeNext(next))
+	// The failures from here are cleared once the login completes,
+	// including its second factor (finishPasswordStep / LoginMFA).
+	h.finishPasswordStep(c, user, next, "")
 }
 
 func (h *Handler) Logout(c *gin.Context) {

@@ -43,13 +43,16 @@ const (
 )
 
 // SweepAuth deletes what has outlived its use: rate-limit events past every
-// window, expired codes, and accounts that never confirmed their address.
+// window, expired codes and pending logins, and accounts that never confirmed their address.
 // Safe to run from several pods at once.
 func SweepAuth(db *sql.DB) error {
 	if _, err := db.Exec("DELETE FROM auth_attempts WHERE created_at < $1", time.Now().Add(-attemptRetention)); err != nil {
 		return err
 	}
 	if _, err := db.Exec("DELETE FROM email_codes WHERE expires_at < now()"); err != nil {
+		return err
+	}
+	if _, err := db.Exec("DELETE FROM pending_logins WHERE expires_at < now()"); err != nil {
 		return err
 	}
 	_, err := db.Exec(

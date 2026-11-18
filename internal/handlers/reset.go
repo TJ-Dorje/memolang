@@ -127,9 +127,11 @@ func (h *Handler) Reset(c *gin.Context) {
 	}
 
 	h.send(c, passwordChangedMail(user.Email))
-	if err := h.startSessionCookie(c, user.ID); err != nil {
-		h.redirectWithFlash(c, "/login", "Password changed. Please log in.")
-		return
+	// A reset proves the inbox, not the phone: with MFA on, the code is
+	// still asked for.
+	flash := "Password changed. You're logged in, and every other session was signed out."
+	if user.MFAEnabled() {
+		flash = "Password changed. Enter your authenticator code to finish logging in."
 	}
-	h.redirectWithFlash(c, "/", "Password changed. You're logged in, and every other session was signed out.")
+	h.finishPasswordStep(c, user, "/", flash)
 }

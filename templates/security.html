@@ -70,6 +70,41 @@
         </form>
         {{end}}
 
+        <h2>Two-factor login</h2>
+        {{if .Data.MFAError}}<div class="form-error">{{.Data.MFAError}}</div>{{end}}
+        {{if .User.MFAEnabled}}
+        <p class="mfa-status">On. Logging in also needs a code from your authenticator app.
+           You have <strong>{{.Data.RecoveryCodesLeft}}</strong> unused recovery
+           {{if eq .Data.RecoveryCodesLeft 1}}code{{else}}codes{{end}}.</p>
+        <form method="POST" class="mfa-manage-form">
+            <div>
+                <label for="mfa_password">Password</label>
+                <input type="password" id="mfa_password" name="password"
+                       autocomplete="current-password" required>
+            </div>
+            <div>
+                <label for="mfa_code">Authenticator or recovery code</label>
+                <input type="text" id="mfa_code" name="code" required
+                       autocomplete="one-time-code" maxlength="12">
+            </div>
+            <div>
+                <button type="submit" formaction="/profile/security/mfa/regenerate" class="btn">New Recovery Codes</button>
+                <button type="submit" formaction="/profile/security/mfa/disable" class="btn btn-danger">Turn Off</button>
+            </div>
+        </form>
+        {{else}}
+        <p class="mfa-status">Off. Turn it on to require a code from an authenticator app
+           on your phone when you log in, on top of your password.</p>
+        <form method="POST" action="/profile/security/mfa/setup" class="mfa-setup-form">
+            {{if .Data.MFASetupPending}}
+            <a href="/profile/security/mfa" class="btn btn-primary">Continue Setup</a>
+            <button type="submit" class="btn">Start Over</button>
+            {{else}}
+            <button type="submit" class="btn btn-primary">Turn On</button>
+            {{end}}
+        </form>
+        {{end}}
+
         <h2>Sessions</h2>
         <p class="session-count">
             You are signed in on <strong>{{.Data.Sessions}}</strong>

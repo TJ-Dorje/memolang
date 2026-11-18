@@ -25,8 +25,10 @@ import (
 
 // The same binary runs in two modes:
 //
-//	memolang          the web app
-//	memolang worker   runs queued LLM jobs (needs NATS_URL)
+//	memolang                         the web app
+//	memolang worker                  runs queued LLM jobs (needs NATS_URL)
+//	memolang user reset-mfa <email>  turns off two-factor login for someone
+//	                                 who lost both their phone and recovery codes
 //
 // With NATS_URL set, the web app streams replies through JetStream and
 // enqueues LLM work for workers; without it, it runs that work in-process
@@ -45,6 +47,10 @@ func main() {
 
 	if len(os.Args) > 1 && os.Args[1] == "worker" {
 		runWorker(ctx, database)
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "user" {
+		runUserCommand(database, os.Args[2:])
 		return
 	}
 	runWeb(ctx, database)
@@ -92,6 +98,32 @@ func runWorker(ctx context.Context, database *sql.DB) {
 		log.Fatalf("worker: %v", err)
 	}
 	log.Println("Worker: stopped")
+}
+
+// runUserCommand is the operator's account tool, run where DATABASE_URL
+// reaches production (e.g. kubectl exec into a web pod). There is no
+// self-service way around a lost second factor — an email fallback would
+// make MFA only as strong as the inbox — so this is the way back in, after
+// the operator has checked who is asking.
+func runUserCommand(database *sql.DB, args []string) {
+	if len(args) != 2 || args[0] != "reset-mfa" {
+		log.Fatal("usage: memolang user reset-mfa <email>")
+	}
+	user, err := models.GetUserByEmail(database, args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	if user == nil {
+		log.Fatalf("no account for %s", args[1])
+	}
+	if !user.MFAEnabled() {
+		log.Printf("%s has no two-factor login; nothing to do", user.Email)
+		return
+	}
+	if err := models.DisableMFA(database, user.ID); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("two-factor login turned off for %s; they can log in with their password and set it up again", user.Email)
 }
 
 // sweepAuth deletes expired codes, old rate-limit events and accounts that

@@ -66,6 +66,18 @@ func (h *Handler) renderSecurity(c *gin.Context, data SecurityData) {
 	}
 	data.PendingEmail = pending
 
+	secret, enabled, err := models.TOTPSecret(h.DB, currentUserID(c))
+	if err != nil {
+		log.Printf("SecurityPage: TOTPSecret: %v", err)
+	}
+	data.MFASetupPending = secret != "" && !enabled
+	if enabled {
+		data.RecoveryCodesLeft, err = models.CountRecoveryCodes(h.DB, currentUserID(c))
+		if err != nil {
+			log.Printf("SecurityPage: CountRecoveryCodes: %v", err)
+		}
+	}
+
 	h.render(c, http.StatusOK, "security.html", PageData{
 		Title: "Security",
 		Flash: h.getFlash(c),
