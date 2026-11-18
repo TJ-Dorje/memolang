@@ -37,7 +37,7 @@
             ];
           };
 
-          vendorHash = "sha256-kzZgoO9Pi6NdhPMXUkhNzwmIwnLdMQtSATg40GOIVE8=";
+          vendorHash = "sha256-sjL5Lan+7AeihfRaFygevgxiy8Rsdg+4hcP0jFLhCjk=";
           subPackages = [ "." ];
           env.CGO_ENABLED = 0;
           ldflags = [
